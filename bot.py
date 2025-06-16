@@ -1,128 +1,108 @@
-from telethon import TelegramClient, events, types, functions
 import asyncio
+import pytz
+from datetime import datetime
+from telethon import TelegramClient, events
+from telethon.sessions import StringSession
+from telethon.tl import functions
+from dotenv import load_dotenv
+import os
+import threading
+import time
+import logging
+from flask import Flask
 
-API_ID = 28327193  # <-- Replace with your API ID
-API_HASH = '4aa7d6f0ae2f65fc8c80c69f03d00ae1'  # <-- Replace with your API HASH
-SESSION_NAME = 'BQGwPRkAPJdoIi9zcBTIc_CcMvRXbauaWBHK2OXg19mEqYNRaPnaZUg1H_SIOZV0WF8yebZjFTrqLq5qnMK_iF6GW2pq4188rqUhihE25xwCFVT-IMv-Z7z4YECYyrZGBEAYngipw6k-vL0gg-BlPOI68-GVStn-QNnTI8gKFEIisbHBVBv0raY69W7Lk_OVnkUmZSvPNu-J7y4dt65fI6-z3vPyGW97QR6_a366vTXMGkdp8CZJ8EYVD5-731xwT1TVgqHudyWsYd_SmpQyw6qB4ahWPsGgtMTudZTK_-vSPxDbWKKrT5SQ5_AukJaCeV0wHARxj1yl2XJNeh0Fz9HMrOWbWAAAAAHceB2jAA'
+# 🔐 Load secrets from .env
+load_dotenv()
+api_id = 28327193
+api_hash = '4aa7d6f0ae2f65fc8c80c69f03d00ae1'
+session_string = os.getenv("BQGwPRkAPJdoIi9zcBTIc_CcMvRXbauaWBHK2OXg19mEqYNRaPnaZUg1H_SIOZV0WF8yebZjFTrqLq5qnMK_iF6GW2pq4188rqUhihE25xwCFVT-IMv-Z7z4YECYyrZGBEAYngipw6k-vL0gg-BlPOI68-GVStn-QNnTI8gKFEIisbHBVBv0raY69W7Lk_OVnkUmZSvPNu-J7y4dt65fI6-z3vPyGW97QR6_a366vTXMGkdp8CZJ8EYVD5-731xwT1TVgqHudyWsYd_SmpQyw6qB4ahWPsGgtMTudZTK_-vSPxDbWKKrT5SQ5_AukJaCeV0wHARxj1yl2XJNeh0Fz9HMrOWbWAAAAAHceB2jAA")
 
-client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
+client = TelegramClient(StringSession(session_string), api_id, api_hash)
 
-# Basic Commands
-@client.on(events.NewMessage(pattern=r'\.ping'))
-async def ping(event):
-    await event.reply("🏓 Pong!")
+# ✅ Flask App for keep-alive
+app = Flask(__name__)
 
-@client.on(events.NewMessage(pattern=r'\.alive'))
-async def alive(event):
-    await event.reply("✅ I'm Alive!")
+@app.route('/')
+def home():
+    return "🟢 I am alive and running on Render!"
 
-@client.on(events.NewMessage(pattern=r'\.id'))
-async def userid(event):
-    sender = await event.get_sender()
-    await event.reply(f"🆔 Your ID: `{sender.id}`")
-
-@client.on(events.NewMessage(pattern=r'\.me'))
-async def me(event):
-    sender = await event.get_sender()
-    name = sender.first_name or "Unknown"
-    username = f"@{sender.username}" if sender.username else "No username"
-    await event.reply(f"🙋‍♂️ Name: {name}\n🔹 Username: {username}\n🆔 ID: `{sender.id}`")
-
-@client.on(events.NewMessage(pattern=r'\.info'))
-async def info(event):
-    replied = await event.get_reply_message()
-    if not replied:
-        await event.reply("❗ Kisi user ko reply karo jiska info chahiye.")
-        return
-    user = await replied.get_sender()
-    msg = f"""📄 User Info:
-• Name: {user.first_name}
-• Username: @{user.username if user.username else 'None'}
-• ID: `{user.id}`
-• Bot: {user.bot}
-• Restricted: {user.restricted}
-"""
-    await event.reply(msg)
-
-# Admin Commands
-@client.on(events.NewMessage(pattern=r'\.kick'))
-async def kick(event):
-    if not (event.is_group or event.is_channel):
-        return await event.reply("❗ Yeh command sirf group me kaam karega.")
-    replied = await event.get_reply_message()
-    if not replied:
-        return await event.reply("⚠️ Kisi user ko reply karo jise kick karna hai.")
-    user = await replied.get_sender()
+def run_flask():
     try:
-        await client.kick_participant(event.chat_id, user.id)
-        await event.reply(f"👢 Kicked {user.first_name}")
+        app.run(host='0.0.0.0', port=8085)
     except Exception as e:
-        await event.reply(f"❌ Error: {str(e)}")
+        logging.error(f"Error in Flask server: {e}")
 
-@client.on(events.NewMessage(pattern=r'\.ban'))
-async def ban(event):
-    if not (event.is_group or event.is_channel):
-        return await event.reply("❗ Yeh command sirf group me kaam karega.")
-    replied = await event.get_reply_message()
-    if not replied:
-        return await event.reply("⚠️ Kisi user ko reply karo jise ban karna hai.")
-    user = await replied.get_sender()
+def keep_alive():
+    t = threading.Thread(target=run_flask, daemon=True)
+    t.start()
+
+# ✅ BIO Time updater
+async def update_bio():
+    base_bio = "You’re not better or smarter… just lucky, right time right place."
+    while True:
+        try:
+            india = pytz.timezone('Asia/Kolkata')
+            current_time = datetime.now(india).strftime("%I:%M %p IST")
+            full_bio = f"{base_bio} | 🕒 {current_time}"
+            await client(functions.account.UpdateProfileRequest(about=full_bio))
+            print(f"[✓] Bio updated: {full_bio}")
+        except Exception as e:
+            print(f"[✗] Error updating bio: {e}")
+        await asyncio.sleep(60)
+
+async def keep_online_safe():
+    while True:
+        try:
+            me = await client.get_me()
+            messages = await client.get_messages("me", limit=1)
+            if messages:
+                await client.send_read_acknowledge("me", max_id=messages[0].id)
+                print("[✓] Sent read receipt to keep session active")
+        except Exception as e:
+            print(f"[✗] Error in keep_online_safe: {e}")
+        await asyncio.sleep(30)
+
+# ✅ Toggle flag
+message_edit_enabled = True  # default ON
+
+# ✅ Command Handler: .on / .off
+@client.on(events.NewMessage(outgoing=True, pattern=r"\.(on|off)"))
+async def toggle_edit(event):
+    global message_edit_enabled
+    cmd = event.raw_text.lower().strip()
+    if cmd == ".off":
+        message_edit_enabled = False
+        await event.reply("🛑 Message edit (code block) OFF।")
+        print("[⚙️] Message edit feature turned OFF")
+    elif cmd == ".on":
+        message_edit_enabled = True
+        await event.reply("✅ Message edit (code block) ACTIVE NOW।")
+        print("[⚙️] Message edit feature turned ON")
+
+# ✅ Message Code Block Quoter
+@client.on(events.NewMessage(outgoing=True))
+async def code_block_quote(event):
+    global message_edit_enabled
     try:
-        await client(functions.channels.EditBannedRequest(
-            channel=event.chat_id,
-            participant=user.id,
-            banned_rights=types.ChatBannedRights(
-                until_date=None,
-                view_messages=True
-            )
-        ))
-        await event.reply(f"🚫 Banned {user.first_name}")
+        msg = event.raw_text
+        if not message_edit_enabled:
+            return
+        if msg.startswith("") or msg.startswith("/") or msg.startswith(">") or msg.startswith(".on") or msg.startswith(".off"):
+            return
+        await asyncio.sleep(0.5)
+        await event.edit(f"{msg}")
+        print(f"[✓] Quoted in code block: {msg}")
     except Exception as e:
-        await event.reply(f"❌ Error: {str(e)}")
+        print(f"[✗] Error in message quote: {e}")
 
-@client.on(events.NewMessage(pattern=r'\.mute'))
-async def mute(event):
-    if not (event.is_group or event.is_channel):
-        return await event.reply("❗ Yeh command sirf group me kaam karega.")
-    replied = await event.get_reply_message()
-    if not replied:
-        return await event.reply("⚠️ Kisi user ko reply karo jise mute karna hai.")
-    user = await replied.get_sender()
-    try:
-        await client(functions.channels.EditBannedRequest(
-            channel=event.chat_id,
-            participant=user.id,
-            banned_rights=types.ChatBannedRights(
-                send_messages=True,
-                until_date=None
-            )
-        ))
-        await event.reply(f"🔇 Muted {user.first_name}")
-    except Exception as e:
-        await event.reply(f"❌ Error: {str(e)}")
-
-# Help command
-@client.on(events.NewMessage(pattern=r'\.helpme'))
-async def help_cmd(event):
-    commands = """
-🛠️ **UserBot Commands**:
-• `.ping` – Test bot status
-• `.alive` – Check if bot is alive
-• `.id` – Your Telegram ID
-• `.me` – Your profile info
-• `.info` – Info of replied user
-• `.kick` – Kick replied user
-• `.ban` – Ban replied user
-• `.mute` – Mute replied user
-• `.helpme` – Show this help
-"""
-    await event.reply(commands)
-
-# Main
+# ✅ Start Everything
 async def main():
-    print("Userbot is running...")
+    keep_alive()  # 🟢 Start Flask thread
     await client.start()
-    await client.run_until_disconnected()
+    print("✅ Bot started")
+    await asyncio.gather(
+        update_bio(),
+        keep_online_safe()
+    )
 
-if __name__ == '__main__':
-    asyncio.run(main())
+client.loop.run_until_complete(main())
