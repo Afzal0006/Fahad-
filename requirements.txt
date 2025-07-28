@@ -1,12 +1,2 @@
-# Create a requirements.txt file with the specified contents
-requirements_content = """telethon==1.33.0
-flask==3.0.0
-python-dotenv==1.0.0
-pytz==2023.3
-"""
-
-file_path = "/mnt/data/requirements.txt"
-with open(file_path, "w") as f:
-    f.write(requirements_content)
-
-file_path
+telethon
+pytz
