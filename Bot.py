@@ -14,8 +14,8 @@ from flask import Flask
 load_dotenv()
 
 # ✅ Load API credentials safely
-api_id = int(os.getenv("API_ID"))
-api_hash = os.getenv("API_HASH")
+api_id = int(os.getenv("24566510"))
+api_hash = os.getenv("c2ee7f7c08ba307cf2e1eeca7f5d3381")
 session_string = os.getenv("SESSION_STRING")
 
 # ✅ Create Telegram client
