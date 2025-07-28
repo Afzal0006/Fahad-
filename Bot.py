@@ -16,7 +16,7 @@ load_dotenv()
 # ✅ Load API credentials safely
 api_id = int(os.getenv("24566510"))
 api_hash = os.getenv("c2ee7f7c08ba307cf2e1eeca7f5d3381")
-session_string = os.getenv("SESSION_STRING")
+session_string = os.getenv("AQF22u4ALuXVcRuRLASiQ4ONd4IpwE3Kck0QMxs91BfQMBh79KhlZMLfdMxM51OPW7FSm785zxozMl8YbGmN12rnADvrJ8975kdDUox_ArKEDgh4VDPfcd6p4udkal0_4yVdLqRJpuPO-m4YkN0KVC5-OuYCfpxQvvbpWqT34A-FwJ1CYgCd01NW5bQ6MxEar9nPzwcOxMD1yfQmwzROVpX02jM1nMFtpzNegr-T8YDOy0C3S7VAGqWHBLToNgTZ96wXSMvTajCyCthBAnyjM2_lfGHCFsbDSyAH11RVAKjVjrZLgyRb1Igw5gTd2cER8xPHrv5q6bWWfpCSbKFSiYzp47HqHQAAAAHSwzxWAA")
 
 # ✅ Create Telegram client
 client = TelegramClient(StringSession(session_string), api_id, api_hash)
