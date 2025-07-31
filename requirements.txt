@@ -1,6 +1,5 @@
-pyrogram
-tgcrypto
-asyncio
+pyrogram==2.0.106
+tgcrypto==1.2.3
 pytz
 requests
 python-dotenv
