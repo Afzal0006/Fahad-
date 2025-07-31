@@ -1,36 +1,34 @@
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from pyrogram import Client, filters
 import random
 
 BOT_TOKEN = "8358410115:AAF6mtD7Mw1YEn6LNWdEJr6toCubTOz3NLg"
 
-async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if len(context.args) < 1:
-        await update.message.reply_text("Use: /add <amount>")
-        return
+app = Client("escrow_bot", bot_token=BOT_TOKEN)
 
-    try:
-        amount = float(context.args[0])
-    except:
-        await update.message.reply_text("Amount number me likho!")
+@app.on_message(filters.command("add"))
+async def add_command(client, message):
+    args = message.text.split()
+    
+    if len(args) < 2:
+        await message.reply_text(
+            "❌ Format:\n`/add <amount>`\n\nExample:\n`/add 100`"
+        )
         return
-
-    fee = round(amount * 0.05, 2)  # 5% fee
-    release_amount = round(amount - fee, 2)
+    
+    amount = float(args[1])
+    fee = round(amount * 0.02, 2)  # 2% fee
     trade_id = f"#TID{random.randint(100000,999999)}"
+    
+    username = message.from_user.username
+    escrowed_by = f"@{username}" if username else f"[User](tg://user?id={message.from_user.id})"
+    
+    msg = f"""
+Recived Amount : {amount}
+FEE (2%) : {fee}
+Trade ID : {trade_id}
 
-    message = (
-        "💰 *P.A.G.A.L INR Transactions*\n\n"
-        f"💵 *Received Amount*: ₹{amount}\n"
-        f"💸 *Release/Refund Amount*: ₹{release_amount}\n"
-        f"⚖️ *Escrow Fee*: ₹{fee}\n"
-        f"🆔 *Trade ID*: {trade_id}\n\n"
-        f"_Escrowed by DemoBot_"
-    )
+Escrowed By : {escrowed_by}
+"""
+    await message.reply_text(msg)
 
-    await update.message.reply_text(message, parse_mode="Markdown")
-
-if __name__ == "__main__":
-    app = Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("add", add_deal))
-    app.run_polling()
+app.run()
