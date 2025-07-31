@@ -1,27 +1,26 @@
-import os
 import random
-from telethon import TelegramClient, events
-from dotenv import load_dotenv
+from pyrogram import Client, filters
 
-# Load env
-load_dotenv()
+# --- Apne Pyrogram credentials yaha daalo ---
+API_ID = 24566510  # <- Apna API ID
+API_HASH = "c2ee7f7c08ba307cf2e1eeca7f5d3381"  # <- Apna API HASH
+STRING_SESSION = "AQF22u4Aeprwn_km-PfgsUEu7VSBwvZiD9Gm5mbvMpFokYLWQTxWZ3ylb3nn6JfQnmpY9DQf2jY9oLgW2eGSpYyJ86vFtZe69t1hju4otfy-KA9vAZFVLqTielwM3zsu0tzYJ39rITGq1eLA0BKfOXH_F7XQrBTrod_tM9VDHDUeRBBElkxVT8sn0H62cC7qbaNUEEt05hw8CZesGMf5UCUTT_tttUqxMbBliml_A2va_iybYj0iV2zqu-vWXiY5uMVPgJrMRvfsbF4GzjWpNr9ALPA2nXYFLPgFLbomfCkOZME7vnLXYmiap7LMut8p3bGKw6cAt5Nch8jN92Y26aqXBgnE9QAAAAHSwzxWAA"  # <- Apna Pyrogram string session
 
-API_ID = int(os.getenv("24566510"))
-API_HASH = os.getenv("c2ee7f7c08ba307cf2e1eeca7f5d3381")
-SESSION = os.getenv("AQF22u4Aeprwn_km-PfgsUEu7VSBwvZiD9Gm5mbvMpFokYLWQTxWZ3ylb3nn6JfQnmpY9DQf2jY9oLgW2eGSpYyJ86vFtZe69t1hju4otfy-KA9vAZFVLqTielwM3zsu0tzYJ39rITGq1eLA0BKfOXH_F7XQrBTrod_tM9VDHDUeRBBElkxVT8sn0H62cC7qbaNUEEt05hw8CZesGMf5UCUTT_tttUqxMbBliml_A2va_iybYj0iV2zqu-vWXiY5uMVPgJrMRvfsbF4GzjWpNr9ALPA2nXYFLPgFLbomfCkOZME7vnLXYmiap7LMut8p3bGKw6cAt5Nch8jN92Y26aqXBgnE9QAAAAHSwzxWAA", "userbot")
+# Pyrogram client
+app = Client(name="userbot", api_id=API_ID, api_hash=API_HASH, session_string=STRING_SESSION)
 
-client = TelegramClient(SESSION, API_ID, API_HASH)
-
-# Start client
-@client.on(events.NewMessage(pattern=r"^/add (\d+)$"))
-async def add_amount(event):
+@app.on_message(filters.me & filters.command("add", prefixes="/"))
+async def add_amount(client, message):
     try:
-        amount = int(event.pattern_match.group(1))  # Jo amount admin ne diya
+        # Command check
+        if len(message.command) < 2:
+            return await message.reply_text("⚠️ Usage: `/add <amount>`")
+
+        amount = int(message.command[1])
         fee_percent = 4
 
         fee = round(amount * fee_percent / 100, 2)
         release_amount = round(amount - fee, 2)
-
         trade_id = f"#TID{random.randint(100000,999999)}"
 
         msg = (
@@ -33,10 +32,9 @@ async def add_amount(event):
             "✅ Continue the Deal..."
         )
 
-        await event.reply(msg)
+        await message.reply_text(msg)
     except Exception as e:
-        await event.reply(f"Error: {str(e)}")
+        await message.reply_text(f"Error: {str(e)}")
 
-print("Userbot started...")
-client.start()
-client.run_until_disconnected()
+print("Pyrogram userbot started...")
+app.run()
