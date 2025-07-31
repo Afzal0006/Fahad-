@@ -25,7 +25,7 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💸 *Release/Refund Amount*: ₹{release_amount}\n"
         f"⚖️ *Escrow Fee*: ₹{fee}\n"
         f"🆔 *Trade ID*: {trade_id}\n\n"
-        f"_Escrowed by xd_"
+        f"_Escrowed by {escrower}"
     )
 
     await update.message.reply_text(message, parse_mode="Markdown")
