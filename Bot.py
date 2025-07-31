@@ -1,60 +1,31 @@
-import random
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+import time
+from telegram.ext import Updater, CommandHandler
 
+# Bot token
 BOT_TOKEN = "8358410115:AAF6mtD7Mw1YEn6LNWdEJr6toCubTOz3NLg"
 
-# Random NFT images (URLs)
-NFT_IMAGES = [
-    "https://i.ibb.co/p0Zg1dp/nft1.png",
-    "https://i.ibb.co/Mk3GHxW/nft2.png",
-    "https://i.ibb.co/XVQQP0c/nft3.png",
-]
+# Bot ka start time
+START_TIME = time.time()
 
-# /start command
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🌞 Good Morning! Welcome to my Bot.")
+def ping(update, context):
+    # Current time - start time = uptime
+    uptime_seconds = int(time.time() - START_TIME)
+    hours, remainder = divmod(uptime_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    uptime = f"{hours}h {minutes}m {seconds}s"
+    
+    update.message.reply_text(f"🏓 Pong!\n⏳ Uptime: {uptime}")
 
-    # Inline buttons
-    keyboard = [
-        [
-            InlineKeyboardButton("NFT", callback_data="nft"),
-            InlineKeyboardButton("LOL", callback_data="lol")
-        ],
-        [
-            InlineKeyboardButton("POP", callback_data="pop"),
-            InlineKeyboardButton("Rose or Candy", callback_data="rose_candy")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Choose one:", reply_markup=reply_markup)
-
-# Button press handler
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    data = query.data
-    if data == "nft":
-        nft_url = random.choice(NFT_IMAGES)
-        await query.message.reply_photo(photo=nft_url, caption="🖼️ Here is your NFT!")
-    elif data == "lol":
-        await query.edit_message_text("😂 LOL!!")
-    elif data == "pop":
-        await query.edit_message_text("🎉 POP POP POP!")
-    elif data == "rose_candy":
-        await query.edit_message_text("🌹 Here's a Rose and 🍬 Candy!")
-
-# Main function
 def main():
-    app = Application.builder().token(BOT_TOKEN).build()
+    updater = Updater(BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
 
-    # Handlers
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(button_handler))
+    # Ping command handler
+    dp.add_handler(CommandHandler("ping", ping))
 
-    print("Bot is running...")
-    app.run_polling()
+    print("✅ Bot Started...")
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == "__main__":
     main()
