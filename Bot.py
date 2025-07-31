@@ -1,31 +1,45 @@
-import time
-from telegram.ext import Updater, CommandHandler
+from telegram import Update, ChatPermissions
+from telegram.ext import Application, CommandHandler, ContextTypes
 
-# Bot token
-BOT_TOKEN = "8358410115:AAF6mtD7Mw1YEn6LNWdEJr6toCubTOz3NLg"
+# Ban command
+async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message.reply_to_message:
+        await update.message.reply_text("⚠️ Reply to a user's message to ban them!")
+        return
 
-# Bot ka start time
-START_TIME = time.time()
+    user_id = update.message.reply_to_message.from_user.id
+    try:
+        await update.effective_chat.ban_member(user_id)
+        await update.message.reply_text("✅ User has been banned!")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Failed to ban user: {e}")
 
-def ping(update, context):
-    # Current time - start time = uptime
-    uptime_seconds = int(time.time() - START_TIME)
-    hours, remainder = divmod(uptime_seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    uptime = f"{hours}h {minutes}m {seconds}s"
-    
-    update.message.reply_text(f"🏓 Pong!\n⏳ Uptime: {uptime}")
+# Mute command
+async def mute(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message.reply_to_message:
+        await update.message.reply_text("⚠️ Reply to a user's message to mute them!")
+        return
+
+    user_id = update.message.reply_to_message.from_user.id
+    try:
+        await update.effective_chat.restrict_member(
+            user_id,
+            permissions=ChatPermissions(can_send_messages=False)
+        )
+        await update.message.reply_text("🔇 User has been muted!")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Failed to mute user: {e}")
 
 def main():
-    updater = Updater(BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
+    TOKEN = "8358410115:AAF6mtD7Mw1YEn6LNWdEJr6toCubTOz3NLg"  # Your bot token
 
-    # Ping command handler
-    dp.add_handler(CommandHandler("ping", ping))
+    app = Application.builder().token(TOKEN).build()
 
-    print("✅ Bot Started...")
-    updater.start_polling()
-    updater.idle()
+    app.add_handler(CommandHandler("ban", ban))
+    app.add_handler(CommandHandler("mute", mute))
+
+    print("✅ Bot started and running...")
+    app.run_polling()
 
 if __name__ == "__main__":
     main()
