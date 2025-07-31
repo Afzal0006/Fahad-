@@ -1,45 +1,42 @@
-from telegram import Update, ChatPermissions
-from telegram.ext import Application, CommandHandler, ContextTypes
+import os
+import random
+from telethon import TelegramClient, events
+from dotenv import load_dotenv
 
-# Ban command
-async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message.reply_to_message:
-        await update.message.reply_text("⚠️ Reply to a user's message to ban them!")
-        return
+# Load env
+load_dotenv()
 
-    user_id = update.message.reply_to_message.from_user.id
+API_ID = int(os.getenv("API_ID"))
+API_HASH = os.getenv("API_HASH")
+SESSION = os.getenv("SESSION_NAME", "userbot")
+
+client = TelegramClient(SESSION, API_ID, API_HASH)
+
+# Start client
+@client.on(events.NewMessage(pattern=r"^/add (\d+)$"))
+async def add_amount(event):
     try:
-        await update.effective_chat.ban_member(user_id)
-        await update.message.reply_text("✅ User has been banned!")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Failed to ban user: {e}")
+        amount = int(event.pattern_match.group(1))  # Jo amount admin ne diya
+        fee_percent = 4
 
-# Mute command
-async def mute(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message.reply_to_message:
-        await update.message.reply_text("⚠️ Reply to a user's message to mute them!")
-        return
+        fee = round(amount * fee_percent / 100, 2)
+        release_amount = round(amount - fee, 2)
 
-    user_id = update.message.reply_to_message.from_user.id
-    try:
-        await update.effective_chat.restrict_member(
-            user_id,
-            permissions=ChatPermissions(can_send_messages=False)
+        trade_id = f"#TID{random.randint(100000,999999)}"
+
+        msg = (
+            "💰 **P.A.G.A.L INR Transactions**\n\n"
+            f"💵 **Received Amount:** ₹{amount}\n"
+            f"💸 **Release/Refund Amount:** ₹{release_amount}\n"
+            f"💎 **Escrow Fee:** ₹{fee}\n"
+            f"📌 **Trade ID:** {trade_id}\n\n"
+            "✅ Continue the Deal..."
         )
-        await update.message.reply_text("🔇 User has been muted!")
+
+        await event.reply(msg)
     except Exception as e:
-        await update.message.reply_text(f"❌ Failed to mute user: {e}")
+        await event.reply(f"Error: {str(e)}")
 
-def main():
-    TOKEN = "8358410115:AAF6mtD7Mw1YEn6LNWdEJr6toCubTOz3NLg"  # Your bot token
-
-    app = Application.builder().token(TOKEN).build()
-
-    app.add_handler(CommandHandler("ban", ban))
-    app.add_handler(CommandHandler("mute", mute))
-
-    print("✅ Bot started and running...")
-    app.run_polling()
-
-if __name__ == "__main__":
-    main()
+print("Userbot started...")
+client.start()
+client.run_until_disconnected()
