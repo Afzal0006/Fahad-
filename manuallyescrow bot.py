@@ -20,12 +20,12 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     trade_id = f"#TID{random.randint(100000,999999)}"
 
     message = (
-        "💰 *P.A.G.A.L INR Transactions*\n\n"
+        "💰 *INR Transactions*\n\n"
         f"💵 *Received Amount*: ₹{amount}\n"
         f"💸 *Release/Refund Amount*: ₹{release_amount}\n"
         f"⚖️ *Escrow Fee*: ₹{fee}\n"
         f"🆔 *Trade ID*: {trade_id}\n\n"
-        f"_Escrowed by DemoBot_"
+        f"_Escrowed by xd_"
     )
 
     await update.message.reply_text(message, parse_mode="Markdown")
