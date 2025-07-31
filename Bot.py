@@ -13,7 +13,6 @@ NFT_IMAGES = [
 
 # /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Previous bot ka reply
     await update.message.reply_text("🌞 Good Morning! Welcome to my Bot.")
 
     # Inline buttons
@@ -44,4 +43,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "pop":
         await query.edit_message_text("🎉 POP POP POP!")
     elif data == "rose_candy":
-        await query.edit_message_text("🌹 Here’s a Rose
+        await query.edit_message_text("🌹 Here's a Rose and 🍬 Candy!")
+
+# Main function
+def main():
+    app = Application.builder().token(BOT_TOKEN).build()
+
+    # Handlers
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_handler))
+
+    print("Bot is running...")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
