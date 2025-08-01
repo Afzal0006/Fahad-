@@ -6,7 +6,6 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 
 BOT_TOKEN = "8358410115:AAF6mtD7Mw1YEn6LNWdEJr6toCubTOz3NLg"
 DATA_FILE = "data.json"
-GLOBAL_ADMIN = "@golgibody"  # Only this user can use /gstats
 
 # ================== LOAD / SAVE DATA ==================
 def load_data():
@@ -43,14 +42,12 @@ def init_group(chat_id: str):
         }
 
 def update_escrower_stats(group_id: str, escrower: str, amount: float, fee: float):
-    # Group-wise stats
     g = data["groups"][group_id]
     g["total_deals"] += 1
     g["total_volume"] += amount
     g["total_fee"] += fee
     g["escrowers"][escrower] = g["escrowers"].get(escrower, 0) + amount
 
-    # Global stats
     data["global"]["total_deals"] += 1
     data["global"]["total_volume"] += amount
     data["global"]["total_fee"] += fee
@@ -70,16 +67,6 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
 
-    if len(context.args) < 1:
-        await update.message.reply_text("❌ Usage: Reply to DEAL INFO message with /add <amount>")
-        return
-
-    try:
-        amount = float(context.args[0])
-    except:
-        await update.message.reply_text("❌ Invalid amount!")
-        return
-
     if not update.message.reply_to_message:
         await update.message.reply_text("❌ Please reply to the DEAL INFO form message!")
         return
@@ -87,15 +74,21 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     original_text = update.message.reply_to_message.text
     chat_id = str(update.effective_chat.id)
     reply_id = str(update.message.reply_to_message.message_id)
-
-    # Initialize group in data
     init_group(chat_id)
 
-    # Extract buyer & seller
+    # Extract Buyer, Seller, Amount from form
     buyer_match = re.search(r"BUYER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
     seller_match = re.search(r"SELLER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
+    amount_match = re.search(r"DEAL AMOUNT\s*:\s*₹?([\d.]+)", original_text, re.IGNORECASE)
+
     buyer = buyer_match.group(1) if buyer_match else "Unknown"
     seller = seller_match.group(1) if seller_match else "Unknown"
+    
+    if not amount_match:
+        await update.message.reply_text("❌ Amount not found in the form!")
+        return
+    
+    amount = float(amount_match.group(1))
 
     # Generate Trade ID if new
     if reply_id not in data["groups"][chat_id]["trade_ids"]:
@@ -110,12 +103,11 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Update stats
     update_escrower_stats(chat_id, escrower, amount, fee)
 
-    # Final message
+    # Final message (No DEAL INFO heading)
     msg = (
-        f"💰 DEAL INFO :\n"
-        f"BUYER : {buyer}\n"
-        f"SELLER : {seller}\n"
-        f"DEAL AMOUNT : ₹{amount}\n\n"
+        f"👤 Buyer : {buyer}\n"
+        f"👤 Seller : {seller}\n"
+        f"💰 Deal Amount : ₹{amount}\n\n"
         f"💸 Release/Refund Amount: ₹{release_amount}\n"
         f"⚖️ Escrow Fee: ₹{fee}\n"
         f"🆔 Trade ID: #{trade_id}\n\n"
@@ -156,13 +148,11 @@ async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_id = str(update.message.reply_to_message.message_id)
     init_group(chat_id)
 
-    # Extract buyer & seller
     buyer_match = re.search(r"BUYER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
     seller_match = re.search(r"SELLER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
     buyer = buyer_match.group(1) if buyer_match else "Unknown"
     seller = seller_match.group(1) if seller_match else "Unknown"
 
-    # Same Trade ID
     trade_id = data["groups"][chat_id]["trade_ids"].get(reply_id, f"TID{random.randint(100000, 999999)}")
     escrower = f"@{update.effective_user.username}" if update.effective_user.username else "Unknown"
 
@@ -183,7 +173,6 @@ async def group_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     init_group(chat_id)
     g = data["groups"][chat_id]
 
-    # Prepare escrower list
     escrowers_text = "\n".join([f"{name} = ₹{amt}" for name, amt in g["escrowers"].items()]) or "No deals yet"
 
     msg = (
@@ -197,12 +186,9 @@ async def group_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================== /gstats Command ==================
 async def global_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    username = f"@{user.username}" if user.username else user.first_name
-
-    # Only @golgibody can use
-    if username != GLOBAL_ADMIN:
-        await update.message.reply_text("❌ You are not allowed to use this command.")
+    if not await is_admin(update):
+        username = f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
+        await update.message.reply_text(f"{username} ❌ You are not allowed to use this command.")
         return
 
     g = data["global"]
