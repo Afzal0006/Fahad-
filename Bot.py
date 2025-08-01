@@ -2,13 +2,15 @@ import re, asyncio
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-BOT_TOKEN = "YOUR_BOT_TOKEN"
+BOT_TOKEN = "YOUR_BOT_TOKEN"  # yahan apna token daalo
 
 trade_id_counter = 1
 
+# Escrower ka naam dikhane ke liye
 def get_escrower(update: Update):
     return f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
 
+# Check admin
 async def is_admin(update: Update) -> bool:
     chat = update.effective_chat
     user = update.effective_user
@@ -22,22 +24,25 @@ async def is_admin(update: Update) -> bool:
 async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global trade_id_counter
 
+    # Admin check
     if not await is_admin(update):
         await update.message.reply_text(f"{get_escrower(update)} Baag bhosadiya k")
         return
 
+    # Admin ka /add message delete
     try:
         await update.message.delete()
     except:
         pass
 
+    # Check ki reply message hai ya nahi
     if not update.message.reply_to_message:
-        await update.message.reply_text("❌ Reply to Deal Info message!")
+        await update.effective_chat.send_message("❌ Reply to Deal Info message!")
         return
 
     original_text = update.message.reply_to_message.text or ""
 
-    # Extract fields
+    # Extract fields from original message
     deal_info = re.search(r"DEAL INFO\s*:\s*(.+)", original_text, re.IGNORECASE)
     buyer = re.search(r"BUYER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
     seller = re.search(r"SELLER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
@@ -67,6 +72,8 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🆔 Trade ID: #{trade_id}\n\n"
         f"🛡️ Escrowed By: {get_escrower(update)}"
     )
+
+    # Send as reply to original deal info
     await update.effective_chat.send_message(msg, reply_to_message_id=update.message.reply_to_message.message_id)
 
 # -------- /complete --------
@@ -75,13 +82,14 @@ async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"{get_escrower(update)} Baag bhosadiya k")
         return
 
+    # Admin ka /complete message delete
     try:
         await update.message.delete()
     except:
         pass
 
     if not update.message.reply_to_message:
-        await update.message.reply_text("❌ Reply to the original deal message to complete it!")
+        await update.message.reply_text("❌ Reply to the deal message to complete it!")
         return
 
     original_text = update.message.reply_to_message.text or ""
@@ -116,6 +124,7 @@ async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🆔 Trade ID: #{trade_id}\n\n"
         f"🛡️ Escrowed By: {get_escrower(update)}"
     )
+
     await update.effective_chat.send_message(msg, reply_to_message_id=update.message.reply_to_message.message_id)
 
 # -------- Bot Runner --------
