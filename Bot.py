@@ -6,7 +6,6 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 
 BOT_TOKEN = "8358410115:AAF6mtD7Mw1YEn6LNWdEJr6toCubTOz3NLg"
 DATA_FILE = "data.json"
-GLOBAL_ADMIN = "@golgibody"  # Only this user can use /gstats
 
 # ================== LOAD / SAVE DATA ==================
 def load_data():
@@ -25,9 +24,10 @@ data = load_data()
 # ================== HELPERS ==================
 async def is_admin(update: Update) -> bool:
     chat = update.effective_chat
-    user = update.effective_user
+    if chat.type == "private":  # Private me sab allowed
+        return True
     try:
-        member = await chat.get_member(user.id)
+        member = await chat.get_member(update.effective_user.id)
         return member.status in ["administrator", "creator"]
     except:
         return False
@@ -56,11 +56,14 @@ def update_escrower_stats(group_id: str, escrower: str, amount: float, fee: floa
 
     save_data()
 
-# ================== /add Command (Auto Amount) ==================
+def format_user_link(user: str) -> str:
+    return f"[{user}](https://t.me/{user[1:]})" if user.startswith("@") else user
+
+# ================== /add Command ==================
 async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update):
         username = f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
-        await update.message.reply_text(f"{username} Baag bhosadiya k")
+        await update.message.reply_text(f"{username} ❌ You are not admin")
         return
 
     try:
@@ -83,7 +86,6 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not amount_match:
         await update.message.reply_text("❌ Could not detect amount from the Deal Info message!")
         return
-
     amount = float(amount_match.group(1))
 
     # Extract buyer & seller
@@ -96,7 +98,6 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if reply_id not in data["groups"][chat_id]["trade_ids"]:
         data["groups"][chat_id]["trade_ids"][reply_id] = f"TID{random.randint(100000, 999999)}"
         save_data()
-
     trade_id = data["groups"][chat_id]["trade_ids"][reply_id]
 
     # Fee calculation
@@ -107,24 +108,23 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Update stats
     update_escrower_stats(chat_id, escrower, amount, fee)
 
-    # Final message
+    # Final message (No bio preview)
     msg = (
         f"💰 Amount Received: ₹{amount}\n"
         f"💸 Release Amount: ₹{release_amount}\n"
         f"⚖️ Escrow Fee: ₹{fee}\n"
         f"🆔 Trade ID: #{trade_id}\n\n"
-        f"👤 Buyer: [{buyer}](https://t.me/{buyer[1:]})\n"
-        f"👤 Seller: [{seller}](https://t.me/{seller[1:]})\n"
-        f"🛡️ Escrowed By: [{escrower}](https://t.me/{escrower[1:]})\n"
+        f"👤 Buyer: {format_user_link(buyer)}\n"
+        f"👤 Seller: {format_user_link(seller)}\n"
+        f"🛡️ Escrowed By: {format_user_link(escrower)}\n"
     )
-
     await update.effective_chat.send_message(msg, parse_mode="Markdown", reply_to_message_id=update.message.reply_to_message.message_id)
 
-# ================== /complete Command (Manual Amount) ==================
+# ================== /complete Command ==================
 async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update):
         username = f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
-        await update.message.reply_text(f"{username} Baag bhosadiya k")
+        await update.message.reply_text(f"{username} ❌ You are not admin")
         return
 
     try:
@@ -163,16 +163,15 @@ async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Escrower name
     escrower = f"@{update.effective_user.username}" if update.effective_user.username else "Unknown"
 
-    # ✅ Simple complete message
+    # ✅ Complete message without bio preview
     msg = (
         f"✅ Deal Completed\n"
         f"🆔 Trade ID: #{trade_id}\n"
         f"💸 Total Released: ₹{amount}\n\n"
-        f"Buyer : [{buyer}](https://t.me/{buyer[1:]})\n"
-        f"Seller : [{seller}](https://t.me/{seller[1:]})\n\n"
-        f"🛡️ Escrowed By: [{escrower}](https://t.me/{escrower[1:]})\n"
+        f"Buyer : {format_user_link(buyer)}\n"
+        f"Seller : {format_user_link(seller)}\n\n"
+        f"🛡️ Escrowed By: {format_user_link(escrower)}\n"
     )
-
     await update.effective_chat.send_message(msg, parse_mode="Markdown", reply_to_message_id=update.message.reply_to_message.message_id)
 
 # ================== Bot Start ==================
