@@ -24,7 +24,7 @@ data = load_data()
 # ================== HELPERS ==================
 async def is_admin(update: Update) -> bool:
     chat = update.effective_chat
-    if chat.type == "private":  # Private me sab allowed
+    if chat.type == "private":  # Private chat me sab allowed
         return True
     try:
         member = await chat.get_member(update.effective_user.id)
@@ -56,8 +56,9 @@ def update_escrower_stats(group_id: str, escrower: str, amount: float, fee: floa
 
     save_data()
 
-def format_user_link(user: str) -> str:
-    return f"[{user}](https://t.me/{user[1:]})" if user.startswith("@") else user
+# ✅ Bio-free clickable text (no @username in message)
+def profile_link(user: str, role: str) -> str:
+    return f"[{role}](https://t.me/{user[1:]})" if user.startswith("@") else role
 
 # ================== /add Command ==================
 async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -108,15 +109,15 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Update stats
     update_escrower_stats(chat_id, escrower, amount, fee)
 
-    # Final message (No bio preview)
+    # Final bio-free message
     msg = (
         f"💰 Amount Received: ₹{amount}\n"
         f"💸 Release Amount: ₹{release_amount}\n"
         f"⚖️ Escrow Fee: ₹{fee}\n"
         f"🆔 Trade ID: #{trade_id}\n\n"
-        f"👤 Buyer: {format_user_link(buyer)}\n"
-        f"👤 Seller: {format_user_link(seller)}\n"
-        f"🛡️ Escrowed By: {format_user_link(escrower)}\n"
+        f"👤 Buyer: {profile_link(buyer, 'Buyer Profile')}\n"
+        f"👤 Seller: {profile_link(seller, 'Seller Profile')}\n"
+        f"🛡️ Escrowed By: {profile_link(escrower, 'Escrower')}\n"
     )
     await update.effective_chat.send_message(msg, parse_mode="Markdown", reply_to_message_id=update.message.reply_to_message.message_id)
 
@@ -168,9 +169,9 @@ async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"✅ Deal Completed\n"
         f"🆔 Trade ID: #{trade_id}\n"
         f"💸 Total Released: ₹{amount}\n\n"
-        f"Buyer : {format_user_link(buyer)}\n"
-        f"Seller : {format_user_link(seller)}\n\n"
-        f"🛡️ Escrowed By: {format_user_link(escrower)}\n"
+        f"Buyer : {profile_link(buyer, 'Buyer Profile')}\n"
+        f"Seller : {profile_link(seller, 'Seller Profile')}\n\n"
+        f"🛡️ Escrowed By: {profile_link(escrower, 'Escrower')}\n"
     )
     await update.effective_chat.send_message(msg, parse_mode="Markdown", reply_to_message_id=update.message.reply_to_message.message_id)
 
