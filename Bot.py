@@ -43,14 +43,12 @@ def init_group(chat_id: str):
         }
 
 def update_escrower_stats(group_id: str, escrower: str, amount: float, fee: float):
-    # Group-wise stats
     g = data["groups"][group_id]
     g["total_deals"] += 1
     g["total_volume"] += amount
     g["total_fee"] += fee
     g["escrowers"][escrower] = g["escrowers"].get(escrower, 0) + amount
 
-    # Global stats
     data["global"]["total_deals"] += 1
     data["global"]["total_volume"] += amount
     data["global"]["total_fee"] += fee
@@ -58,7 +56,7 @@ def update_escrower_stats(group_id: str, escrower: str, amount: float, fee: floa
 
     save_data()
 
-# ================== /add Command ==================
+# ================== /add Command (Auto Amount) ==================
 async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update):
         username = f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
@@ -70,26 +68,23 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
 
-    if len(context.args) < 1:
-        await update.message.reply_text("❌ Usage: Reply to DEAL INFO message with /add <amount>")
-        return
-
-    try:
-        amount = float(context.args[0])
-    except:
-        await update.message.reply_text("❌ Invalid amount!")
-        return
-
     if not update.message.reply_to_message:
-        await update.message.reply_text("❌ Please reply to the DEAL INFO form message!")
+        await update.message.reply_text("❌ Reply to the DEAL INFO message with /add")
         return
 
     original_text = update.message.reply_to_message.text
     chat_id = str(update.effective_chat.id)
     reply_id = str(update.message.reply_to_message.message_id)
 
-    # Initialize group in data
     init_group(chat_id)
+
+    # Extract amount automatically
+    amount_match = re.search(r"DEAL AMOUNT\s*[:\-]?\s*₹?\s*([\d\.]+)", original_text, re.IGNORECASE)
+    if not amount_match:
+        await update.message.reply_text("❌ Could not detect amount from the Deal Info message!")
+        return
+
+    amount = float(amount_match.group(1))
 
     # Extract buyer & seller
     buyer_match = re.search(r"BUYER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
@@ -99,7 +94,6 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Generate Trade ID if new
     if reply_id not in data["groups"][chat_id]["trade_ids"]:
-        # 6-digit random Trade ID
         data["groups"][chat_id]["trade_ids"][reply_id] = f"TID{random.randint(100000, 999999)}"
         save_data()
 
@@ -115,19 +109,18 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Final message
     msg = (
-        f"💰 DEAL INFO :\n"
-        f"BUYER : {buyer}\n"
-        f"SELLER : {seller}\n"
-        f"DEAL AMOUNT : ₹{amount}\n\n"
-        f"💸 Release/Refund Amount: ₹{release_amount}\n"
+        f"💰 Amount Received: ₹{amount}\n"
+        f"💸 Release Amount: ₹{release_amount}\n"
         f"⚖️ Escrow Fee: ₹{fee}\n"
         f"🆔 Trade ID: #{trade_id}\n\n"
-        f"🛡️ Escrowed By: {escrower}\n"
+        f"👤 Buyer: [{buyer}](https://t.me/{buyer[1:]})\n"
+        f"👤 Seller: [{seller}](https://t.me/{seller[1:]})\n"
+        f"🛡️ Escrowed By: [{escrower}](https://t.me/{escrower[1:]})\n"
     )
 
-    await update.effective_chat.send_message(msg, reply_to_message_id=update.message.reply_to_message.message_id)
+    await update.effective_chat.send_message(msg, parse_mode="Markdown", reply_to_message_id=update.message.reply_to_message.message_id)
 
-# ================== /complete Command ==================
+# ================== /complete Command (Manual Amount) ==================
 async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update):
         username = f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
@@ -164,67 +157,29 @@ async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     buyer = buyer_match.group(1) if buyer_match else "Unknown"
     seller = seller_match.group(1) if seller_match else "Unknown"
 
-    # Get existing Trade ID (Do not generate new)
+    # Get existing Trade ID
     trade_id = data["groups"][chat_id]["trade_ids"].get(reply_id, "Unknown")
 
+    # Escrower name
+    escrower = f"@{update.effective_user.username}" if update.effective_user.username else "Unknown"
+
+    # ✅ Simple complete message
     msg = (
         f"✅ Deal Completed\n"
         f"🆔 Trade ID: #{trade_id}\n"
-        f"ℹ️ Total Released: ₹{amount}\n\n"
-        f"Buyer : {buyer}\n"
-        f"Seller : {seller}\n\n"
-        f"🛡️ Escrowed By: @{update.effective_user.username if update.effective_user.username else 'Unknown'}\n"
+        f"💸 Total Released: ₹{amount}\n\n"
+        f"Buyer : [{buyer}](https://t.me/{buyer[1:]})\n"
+        f"Seller : [{seller}](https://t.me/{seller[1:]})\n\n"
+        f"🛡️ Escrowed By: [{escrower}](https://t.me/{escrower[1:]})\n"
     )
 
-    await update.effective_chat.send_message(msg, reply_to_message_id=update.message.reply_to_message.message_id)
-
-# ================== /stats Command ==================
-async def group_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = str(update.effective_chat.id)
-    init_group(chat_id)
-    g = data["groups"][chat_id]
-
-    # Prepare escrower list
-    escrowers_text = "\n".join([f"{name} = ₹{amt}" for name, amt in g["escrowers"].items()]) or "No deals yet"
-
-    msg = (
-        f"📊 Escrow Bot Stats\n\n"
-        f"{escrowers_text}\n\n"
-        f"🔹 Total Deals: {g['total_deals']}\n"
-        f"💰 Total Volume: ₹{g['total_volume']}\n"
-        f"💸 Total Fee Collected: ₹{g['total_fee']}\n"
-    )
-    await update.message.reply_text(msg)
-
-# ================== /gstats Command ==================
-async def global_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    username = f"@{user.username}" if user.username else user.first_name
-
-    # Only @golgibody can use
-    if username != GLOBAL_ADMIN:
-        await update.message.reply_text("❌ You are not allowed to use this command.")
-        return
-
-    g = data["global"]
-    escrowers_text = "\n".join([f"{name} = ₹{amt}" for name, amt in g["escrowers"].items()]) or "No deals yet"
-
-    msg = (
-        f"🌍 Global Escrow Stats\n\n"
-        f"{escrowers_text}\n\n"
-        f"🔹 Total Deals: {g['total_deals']}\n"
-        f"💰 Total Volume: ₹{g['total_volume']}\n"
-        f"💸 Total Fee Collected: ₹{g['total_fee']}\n"
-    )
-    await update.message.reply_text(msg)
+    await update.effective_chat.send_message(msg, parse_mode="Markdown", reply_to_message_id=update.message.reply_to_message.message_id)
 
 # ================== Bot Start ==================
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("add", add_deal))
     app.add_handler(CommandHandler("complete", complete_deal))
-    app.add_handler(CommandHandler("stats", group_stats))
-    app.add_handler(CommandHandler("gstats", global_stats))
     print("Bot started... ✅")
     app.run_polling()
 
