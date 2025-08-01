@@ -55,6 +55,21 @@ def update_escrower_stats(group_id: str, escrower: str, amount: float, fee: floa
 
     save_data()
 
+# ================== /start Command ==================
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = (
+        "✨ <b>Welcome to Demo Escrower Bot!</b> ✨\n\n"
+        "🤖 <b>I am here to manage escrow deals securely.</b>\n"
+        "💡 Use me to hold payments safely until trades are complete.\n\n"
+        "📋 <b>My Commands:</b>\n"
+        "• <b>/add</b> – Add a new deal (Reply to DEAL INFO form)\n"
+        "• <b>/complete &lt;amount&gt;</b> – Complete a deal (Reply to deal)\n"
+        "• <b>/stats</b> – Show this group’s stats\n"
+        "• <b>/gstats</b> – Show global stats (Admin only)\n\n"
+        "🛡️ <i>Secure your trades with confidence!</i>"
+    )
+    await update.message.reply_text(msg, parse_mode="HTML")
+
 # ================== /add Command ==================
 async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update):
@@ -103,7 +118,7 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Update stats
     update_escrower_stats(chat_id, escrower, amount, fee)
 
-    # Final message (No DEAL INFO heading)
+    # Final message
     msg = (
         f"👤 Buyer : {buyer}\n"
         f"👤 Seller : {seller}\n"
@@ -206,10 +221,12 @@ async def global_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================== Bot Start ==================
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("add", add_deal))
     app.add_handler(CommandHandler("complete", complete_deal))
     app.add_handler(CommandHandler("stats", group_stats))
     app.add_handler(CommandHandler("gstats", global_stats))
+
     print("Bot started... ✅")
     app.run_polling()
 
