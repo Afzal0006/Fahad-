@@ -34,7 +34,7 @@ async def is_admin(update: Update) -> bool:
 def init_group(chat_id: str):
     if chat_id not in data["groups"]:
         data["groups"][chat_id] = {
-            "trade_ids": {},
+            "deals": {},  # message_id : {trade_id, release_amount, completed}
             "total_deals": 0,
             "total_volume": 0,
             "total_fee": 0.0,
@@ -63,7 +63,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "💡 Use me to hold payments safely until trades are complete.\n\n"
         "📋 <b>My Commands:</b>\n"
         "• <b>/add</b> – Add a new deal (Reply to DEAL INFO form)\n"
-        "• <b>/complete &lt;amount&gt;</b> – Complete a deal (Reply to deal)\n"
+        "• <b>/complete</b> – Complete a deal (Auto release amount)\n"
         "• <b>/stats</b> – Show this group’s stats\n"
         "• <b>/gstats</b> – Show global stats (Admin only)\n\n"
         "🛡️ <i>Secure your trades with confidence!</i>"
@@ -73,9 +73,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================== /add Command ==================
 async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update):
-        username = f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
-        await update.message.reply_text(f"{username} Baag bhosadiya k")
-        return
+        return  # Ignore non-admins
 
     try:
         await update.message.delete()
@@ -94,7 +92,7 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Extract Buyer, Seller, Amount from form
     buyer_match = re.search(r"BUYER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
     seller_match = re.search(r"SELLER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
-    amount_match = re.search(r"DEAL AMOUNT\s*:\s*₹?([\d.]+)", original_text, re.IGNORECASE)
+    amount_match = re.search(r"DEAL AMOUNT\s*:\s*₹?\s*([\d.]+)", original_text, re.IGNORECASE)
 
     buyer = buyer_match.group(1) if buyer_match else "Unknown"
     seller = seller_match.group(1) if seller_match else "Unknown"
@@ -106,13 +104,21 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     amount = float(amount_match.group(1))
 
     # Generate Trade ID if new
-    if reply_id not in data["groups"][chat_id]["trade_ids"]:
-        data["groups"][chat_id]["trade_ids"][reply_id] = f"TID{random.randint(100000, 999999)}"
-    trade_id = data["groups"][chat_id]["trade_ids"][reply_id]
+    group_data = data["groups"][chat_id]
+    if reply_id not in group_data["deals"]:
+        trade_id = f"TID{random.randint(100000, 999999)}"
+        fee = round(amount * 0.02, 2)
+        release_amount = round(amount - fee, 2)
+        group_data["deals"][reply_id] = {
+            "trade_id": trade_id,
+            "release_amount": release_amount,
+            "completed": False
+        }
+    else:
+        trade_id = group_data["deals"][reply_id]["trade_id"]
+        release_amount = group_data["deals"][reply_id]["release_amount"]
+        fee = round(amount - release_amount, 2)
 
-    # Fee calculation
-    fee = round(amount * 0.02, 2)
-    release_amount = round(amount - fee, 2)
     escrower = f"@{update.effective_user.username}" if update.effective_user.username else "Unknown"
 
     # Update stats
@@ -135,46 +141,50 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================== /complete Command ==================
 async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update):
-        username = f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
-        await update.message.reply_text(f"{username} Baag bhosadiya k")
-        return
+        return  # Ignore non-admins
 
     try:
         await update.message.delete()
     except:
         pass
 
-    if len(context.args) < 1:
-        await update.message.reply_text("❌ Usage: Reply to DEAL INFO message with /complete <amount>")
-        return
-
-    try:
-        amount = float(context.args[0])
-    except:
-        await update.message.reply_text("❌ Invalid amount!")
-        return
-
     if not update.message.reply_to_message:
         await update.message.reply_text("❌ Please reply to the DEAL INFO form message!")
         return
 
-    original_text = update.message.reply_to_message.text
     chat_id = str(update.effective_chat.id)
     reply_id = str(update.message.reply_to_message.message_id)
     init_group(chat_id)
 
+    group_data = data["groups"][chat_id]
+    deal_info = group_data["deals"].get(reply_id)
+
+    if not deal_info:
+        await update.message.reply_text("❌ This deal was never added with /add!")
+        return
+
+    if deal_info["completed"]:
+        await update.message.reply_text("❌ This deal is already completed!")
+        return
+
+    # Mark as completed
+    deal_info["completed"] = True
+    save_data()
+
+    original_text = update.message.reply_to_message.text
     buyer_match = re.search(r"BUYER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
     seller_match = re.search(r"SELLER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
     buyer = buyer_match.group(1) if buyer_match else "Unknown"
     seller = seller_match.group(1) if seller_match else "Unknown"
 
-    trade_id = data["groups"][chat_id]["trade_ids"].get(reply_id, f"TID{random.randint(100000, 999999)}")
+    trade_id = deal_info["trade_id"]
+    release_amount = deal_info["release_amount"]
     escrower = f"@{update.effective_user.username}" if update.effective_user.username else "Unknown"
 
     msg = (
         f"✅ Deal Completed\n"
         f"🆔 Trade ID: #{trade_id}\n"
-        f"ℹ️ Total Released: ₹{amount}\n\n"
+        f"ℹ️ Total Released: ₹{release_amount}\n\n"
         f"Buyer : {buyer}\n"
         f"Seller : {seller}\n\n"
         f"🛡️ Escrowed By: {escrower}\n"
@@ -202,9 +212,7 @@ async def group_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================== /gstats Command ==================
 async def global_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update):
-        username = f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
-        await update.message.reply_text(f"{username} ❌ You are not allowed to use this command.")
-        return
+        return  # Ignore non-admins
 
     g = data["global"]
     escrowers_text = "\n".join([f"{name} = ₹{amt}" for name, amt in g["escrowers"].items()]) or "No deals yet"
