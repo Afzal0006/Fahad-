@@ -4,7 +4,7 @@ import json
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-BOT_TOKEN = "8358410115:AAF6mtD7Mw1YEn6LNWdEJr6toCubTOz3NLg"
+BOT_TOKEN = "YOUR_BOT_TOKEN"  # Replace with your bot token
 DATA_FILE = "data.json"
 
 # ================== LOAD / SAVE DATA ==================
@@ -13,7 +13,11 @@ def load_data():
         with open(DATA_FILE, "r") as f:
             return json.load(f)
     except FileNotFoundError:
-        return {"groups": {}, "global": {"total_deals": 0, "total_volume": 0, "total_fee": 0.0}, "last_trade_id": 100000}
+        return {
+            "groups": {},
+            "global": {"total_deals": 0, "total_volume": 0, "total_fee": 0.0},
+            "last_trade_id": 100000
+        }
 
 def save_data():
     with open(DATA_FILE, "w") as f:
@@ -54,7 +58,6 @@ def update_escrower_stats(group_id: str, escrower: str, amount: float, fee: floa
     data["global"]["total_deals"] += 1
     data["global"]["total_volume"] += amount
     data["global"]["total_fee"] += fee
-
     save_data()
 
 def generate_trade_id():
@@ -85,7 +88,7 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     init_group(chat_id, chat_name)
 
-    # Amount detection: manual or auto
+    # ✅ Format-based Amount Detection
     amount = None
     if len(context.args) >= 1:
         try:
@@ -94,12 +97,15 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Invalid amount!")
             return
     else:
-        amt_match = re.search(r"DEAL AMOUNT\s*:\s*(\d+(?:\.\d+)?)", original_text, re.IGNORECASE)
-        if amt_match:
-            amount = float(amt_match.group(1))
+        for line in original_text.splitlines():
+            if line.strip().upper().startswith("DEAL AMOUNT"):
+                amount_str = re.sub(r"[^\d.]", "", line)
+                if amount_str:
+                    amount = float(amount_str)
+                break
 
     if amount is None:
-        await update.message.reply_text("❌ Please provide an amount or ensure form has DEAL AMOUNT")
+        await update.message.reply_text("❌ Could not detect amount from form. Please provide manually.")
         return
 
     # Extract info
