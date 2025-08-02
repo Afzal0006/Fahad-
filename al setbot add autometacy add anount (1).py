@@ -64,9 +64,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📋 Commands:\n"
         "/add – Add new deal\n"
         "/complete – Complete a deal\n"
-        "/refund – Refund a deal\n"
-        "/pending – Show pending deals\n"
-        "/history – Show recent deals\n"
         "/leaderboard – Top buyers & sellers\n"
         "/stats – Group stats\n"
         "/gstats – Global stats (Admin)\n\n"
@@ -148,21 +145,41 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update):
         return
-    
+
+    # Auto delete /complete command
+    try:
+        await update.message.delete()
+    except:
+        pass
+
     if not update.message.reply_to_message:
-        await update.message.reply_text("❌ Reply to pending deal message!")
+        await update.effective_chat.send_message("❌ Reply to deal confirmation message to complete the deal!", parse_mode="HTML")
         return
 
     chat_id = str(update.effective_chat.id)
-    reply_id = str(update.message.reply_to_message.message_id)
+    reply_msg = update.message.reply_to_message
     init_group(chat_id)
     g = data["groups"][chat_id]
 
-    if reply_id not in g["deals"] or g["deals"][reply_id]["status"] != "pending":
-        await update.message.reply_text("❌ No pending deal found for this message!")
+    # Try with original reply id
+    reply_id = str(reply_msg.message_id)
+    deal = g["deals"].get(reply_id)
+
+    # If not found, search trade ID in message text
+    if not deal:
+        trade_id_match = re.search(r"TID\d+", reply_msg.text)
+        if trade_id_match:
+            trade_id = trade_id_match.group(0)
+            for d in g["deals"].values():
+                if d["trade_id"] == trade_id and d["status"] == "pending":
+                    deal = d
+                    break
+
+    if not deal or deal["status"] != "pending":
+        await update.effective_chat.send_message("❌ No pending deal found for this message!", parse_mode="HTML")
         return
 
-    deal = g["deals"][reply_id]
+    # Complete the deal
     deal["status"] = "completed"
     g["history"].append(deal)
     save_data()
@@ -178,68 +195,6 @@ async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.effective_chat.send_message(msg, parse_mode="HTML")
     await context.bot.send_message(LOG_CHANNEL_ID, f"✅ Deal #{deal['trade_id']} Completed in Group {chat_id}", parse_mode="HTML")
-
-async def refund_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await is_admin(update):
-        return
-    
-    if not update.message.reply_to_message:
-        await update.message.reply_text("❌ Reply to pending deal message to refund!")
-        return
-
-    chat_id = str(update.effective_chat.id)
-    reply_id = str(update.message.reply_to_message.message_id)
-    init_group(chat_id)
-    g = data["groups"][chat_id]
-
-    if reply_id not in g["deals"] or g["deals"][reply_id]["status"] != "pending":
-        await update.message.reply_text("❌ No pending deal found for this message!")
-        return
-
-    deal = g["deals"][reply_id]
-    deal["status"] = "refunded"
-    g["history"].append(deal)
-    save_data()
-
-    msg = (
-        "💸 <b>Deal Refunded!</b>\n"
-        f"👤 Buyer : {deal['buyer']}\n"
-        f"👤 Seller: {deal['seller']}\n"
-        f"💰 Amount: ₹{deal['amount']}\n"
-        f"🆔 Trade ID: #{deal['trade_id']}"
-    )
-    await update.effective_chat.send_message(msg, parse_mode="HTML")
-    await context.bot.send_message(LOG_CHANNEL_ID, f"⚠️ Deal #{deal['trade_id']} Refunded in Group {chat_id}", parse_mode="HTML")
-
-async def pending_deals(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = str(update.effective_chat.id)
-    init_group(chat_id)
-    g = data["groups"][chat_id]
-
-    pending_list = [d for d in g["deals"].values() if d["status"] == "pending"]
-    if not pending_list:
-        await update.message.reply_text("✅ No pending deals!")
-        return
-
-    msg = "⏳ <b>Pending Deals</b>\n\n"
-    for d in pending_list:
-        msg += f"🆔 #{d['trade_id']} | Buyer: {d['buyer']} | Amount: ₹{d['amount']}\n"
-    await update.message.reply_text(msg, parse_mode="HTML")
-
-async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = str(update.effective_chat.id)
-    init_group(chat_id)
-    g = data["groups"][chat_id]
-
-    if not g["history"]:
-        await update.message.reply_text("ℹ️ No past deals yet.")
-        return
-
-    last_deals = g["history"][-5:]
-    msg = "📜 <b>Recent Deals</b>\n\n"
-    for d in last_deals:
-        msg += f"#{d['trade_id']} | {d['status'].capitalize()} | ₹{d['amount']}\n"
-    await update.message.reply_text(msg, parse_mode="HTML")
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
@@ -290,9 +245,6 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("add", add_deal))
     app.add_handler(CommandHandler("complete", complete_deal))
-    app.add_handler(CommandHandler("refund", refund_deal))
-    app.add_handler(CommandHandler("pending", pending_deals))
-    app.add_handler(CommandHandler("history", history))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("gstats", gstats))
     app.add_handler(CommandHandler("leaderboard", leaderboard))
