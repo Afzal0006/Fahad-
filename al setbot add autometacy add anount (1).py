@@ -1,13 +1,15 @@
 import re
 import random
 import json
+from datetime import datetime
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-BOT_TOKEN = "8350094964:AAEBEZh1imgSPFA6Oc3-wdDGNyKV4Ozc_yg"
+BOT_TOKEN = "YOUR_BOT_TOKEN"
 DATA_FILE = "data.json"
-LOG_CHANNEL_ID = -1002330347621
+LOG_CHANNEL_ID = -1002330347621  # apna log channel id
 
+# ----------------- Data Handling -----------------
 def load_data():
     try:
         with open(DATA_FILE, "r") as f:
@@ -21,6 +23,7 @@ def save_data():
 
 data = load_data()
 
+# ----------------- Utils -----------------
 async def is_admin(update: Update) -> bool:
     try:
         member = await update.effective_chat.get_member(update.effective_user.id)
@@ -37,7 +40,8 @@ def init_group(chat_id: str):
             "total_fee": 0.0,
             "escrowers": {},
             "buyers": {},
-            "sellers": {}
+            "sellers": {},
+            "history": []
         }
 
 def update_escrower_stats(group_id: str, escrower: str, amount: float, fee: float):
@@ -54,6 +58,7 @@ def update_escrower_stats(group_id: str, escrower: str, amount: float, fee: floa
 
     save_data()
 
+# ----------------- Commands -----------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = (
         "✨ <b>Welcome to Demo Escrower Bot!</b> ✨\n\n"
@@ -109,16 +114,16 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         release_amount = round(amount - fee, 2)
         group_data["deals"][reply_id] = {
             "trade_id": trade_id,
+            "buyer": buyer,
+            "seller": seller,
             "amount": amount,
             "release_amount": release_amount,
             "fee": fee,
-            "status": "pending"
+            "status": "pending",
+            "timestamp": datetime.now().isoformat()
         }
     else:
-        deal = group_data["deals"][reply_id]
-        trade_id = deal["trade_id"]
-        release_amount = deal["release_amount"]
-        fee = deal["fee"]
+        trade_id = group_data["deals"][reply_id]["trade_id"]
 
     escrower = (
         f"@{update.effective_user.username}" 
@@ -126,7 +131,7 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else update.effective_user.full_name
     )
 
-    update_escrower_stats(chat_id, escrower, amount, fee)
+    update_escrower_stats(chat_id, escrower, amount, round(amount*0.02,2))
     group_data["buyers"][buyer] = group_data["buyers"].get(buyer, 0) + amount
     group_data["sellers"][seller] = group_data["sellers"].get(seller, 0) + amount
 
@@ -135,17 +140,135 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👤 Buyer : {buyer}\n"
         f"👤 Seller: {seller}\n"
         f"💰 Amount: ₹{amount}\n"
-        f"💸 Release: ₹{release_amount}\n"
-        f"⚖️ Fee: ₹{fee}\n"
+        f"💸 Release: ₹{amount - amount*0.02:.2f}\n"
+        f"⚖️ Fee: ₹{amount*0.02:.2f}\n"
         f"🆔 Trade ID: #{trade_id}\n"
         f"🛡️ Escrowed by {escrower}"
     )
-    await update.effective_chat.send_message(
-        msg, 
-        reply_to_message_id=update.message.reply_to_message.message_id,
-        parse_mode="HTML"
-    )
+    await update.effective_chat.send_message(msg, reply_to_message_id=update.message.reply_to_message.message_id, parse_mode="HTML")
     save_data()
+
+async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update):
+        return
+    
+    if not update.message.reply_to_message:
+        await update.message.reply_text("❌ Reply to pending deal message!")
+        return
+
+    chat_id = str(update.effective_chat.id)
+    reply_id = str(update.message.reply_to_message.message_id)
+    init_group(chat_id)
+    g = data["groups"][chat_id]
+
+    if reply_id not in g["deals"] or g["deals"][reply_id]["status"] != "pending":
+        await update.message.reply_text("❌ No pending deal found for this message!")
+        return
+
+    deal = g["deals"][reply_id]
+    deal["status"] = "completed"
+    g["history"].append(deal)
+    save_data()
+
+    msg = (
+        "🎉 <b>Deal Completed!</b>\n"
+        f"👤 Buyer : {deal['buyer']}\n"
+        f"👤 Seller: {deal['seller']}\n"
+        f"💰 Amount: ₹{deal['amount']}\n"
+        f"💸 Released: ₹{deal['release_amount']}\n"
+        f"⚖️ Fee: ₹{deal['fee']}\n"
+        f"🆔 Trade ID: #{deal['trade_id']}"
+    )
+    await update.effective_chat.send_message(msg, parse_mode="HTML")
+    await context.bot.send_message(LOG_CHANNEL_ID, f"✅ Deal #{deal['trade_id']} Completed in Group {chat_id}", parse_mode="HTML")
+
+async def refund_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update):
+        return
+    
+    if not update.message.reply_to_message:
+        await update.message.reply_text("❌ Reply to pending deal message to refund!")
+        return
+
+    chat_id = str(update.effective_chat.id)
+    reply_id = str(update.message.reply_to_message.message_id)
+    init_group(chat_id)
+    g = data["groups"][chat_id]
+
+    if reply_id not in g["deals"] or g["deals"][reply_id]["status"] != "pending":
+        await update.message.reply_text("❌ No pending deal found for this message!")
+        return
+
+    deal = g["deals"][reply_id]
+    deal["status"] = "refunded"
+    g["history"].append(deal)
+    save_data()
+
+    msg = (
+        "💸 <b>Deal Refunded!</b>\n"
+        f"👤 Buyer : {deal['buyer']}\n"
+        f"👤 Seller: {deal['seller']}\n"
+        f"💰 Amount: ₹{deal['amount']}\n"
+        f"🆔 Trade ID: #{deal['trade_id']}"
+    )
+    await update.effective_chat.send_message(msg, parse_mode="HTML")
+    await context.bot.send_message(LOG_CHANNEL_ID, f"⚠️ Deal #{deal['trade_id']} Refunded in Group {chat_id}", parse_mode="HTML")
+
+async def pending_deals(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = str(update.effective_chat.id)
+    init_group(chat_id)
+    g = data["groups"][chat_id]
+
+    pending_list = [d for d in g["deals"].values() if d["status"] == "pending"]
+    if not pending_list:
+        await update.message.reply_text("✅ No pending deals!")
+        return
+
+    msg = "⏳ <b>Pending Deals</b>\n\n"
+    for d in pending_list:
+        msg += f"🆔 #{d['trade_id']} | Buyer: {d['buyer']} | Amount: ₹{d['amount']}\n"
+    await update.message.reply_text(msg, parse_mode="HTML")
+
+async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = str(update.effective_chat.id)
+    init_group(chat_id)
+    g = data["groups"][chat_id]
+
+    if not g["history"]:
+        await update.message.reply_text("ℹ️ No past deals yet.")
+        return
+
+    last_deals = g["history"][-5:]
+    msg = "📜 <b>Recent Deals</b>\n\n"
+    for d in last_deals:
+        msg += f"#{d['trade_id']} | {d['status'].capitalize()} | ₹{d['amount']}\n"
+    await update.message.reply_text(msg, parse_mode="HTML")
+
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = str(update.effective_chat.id)
+    init_group(chat_id)
+    g = data["groups"][chat_id]
+
+    msg = (
+        "📊 <b>Group Stats</b>\n\n"
+        f"Total Deals: {g['total_deals']}\n"
+        f"Total Volume: ₹{g['total_volume']}\n"
+        f"Total Fee: ₹{g['total_fee']}"
+    )
+    await update.message.reply_text(msg, parse_mode="HTML")
+
+async def gstats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update):
+        return
+
+    g = data["global"]
+    msg = (
+        "🌎 <b>Global Stats</b>\n\n"
+        f"Total Deals: {g['total_deals']}\n"
+        f"Total Volume: ₹{g['total_volume']}\n"
+        f"Total Fee: ₹{g['total_fee']}"
+    )
+    await update.message.reply_text(msg, parse_mode="HTML")
 
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
@@ -165,12 +288,18 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(msg, parse_mode="HTML")
 
+# ----------------- Main -----------------
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("add", add_deal))
+    app.add_handler(CommandHandler("complete", complete_deal))
+    app.add_handler(CommandHandler("refund", refund_deal))
+    app.add_handler(CommandHandler("pending", pending_deals))
+    app.add_handler(CommandHandler("history", history))
+    app.add_handler(CommandHandler("stats", stats))
+    app.add_handler(CommandHandler("gstats", gstats))
     app.add_handler(CommandHandler("leaderboard", leaderboard))
-    # Add other commands same pattern: complete, refund, pending, history, stats, gstats
 
     print("Bot started... ✅")
     app.run_polling()
