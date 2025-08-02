@@ -1,12 +1,15 @@
 import re
 import random
 import json
+import time
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 BOT_TOKEN = "8350094964:AAEBEZh1imgSPFA6Oc3-wdDGNyKV4Ozc_yg"
 DATA_FILE = "data.json"
 LOG_CHANNEL_ID = -1002330347621  # Tumhara log channel ID
+
+START_TIME = time.time()  # Bot start time
 
 # ================== LOAD / SAVE DATA ==================
 def load_data():
@@ -56,6 +59,13 @@ def update_escrower_stats(group_id: str, escrower: str, amount: float, fee: floa
 
     save_data()
 
+# ================== UPTIME HELPER ==================
+def get_uptime():
+    seconds = int(time.time() - START_TIME)
+    h, s = divmod(seconds, 3600)
+    m, s = divmod(s, 60)
+    return f"{h}h {m}m {s}s"
+
 # ================== /start Command ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = (
@@ -66,10 +76,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• <b>/add</b> – Add a new deal (Reply to DEAL INFO form)\n"
         "• <b>/complete</b> – Complete a deal (Auto release amount)\n"
         "• <b>/stats</b> – Show this group’s stats\n"
-        "• <b>/gstats</b> – Show global stats (Admin only)\n\n"
+        "• <b>/gstats</b> – Show global stats (Admin only)\n"
+        "• <b>/ping</b> – Check bot latency & uptime\n\n"
         "🛡️ <i>Secure your trades with confidence!</i>"
     )
     await update.message.reply_text(msg, parse_mode="HTML")
+
+# ================== /ping Command ==================
+async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    start = time.time()
+    msg = await update.message.reply_text("🏓 Pong!")
+    latency = round((time.time() - start) * 1000, 2)
+    uptime_str = get_uptime()
+    await msg.edit_text(f"🏓 Pong! ({latency} ms)\n⏳ Uptime: {uptime_str}")
 
 # ================== /add Command ==================
 async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -90,8 +109,8 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_id = str(update.message.reply_to_message.message_id)
     init_group(chat_id)
 
-    buyer_match = re.search(r"BUYER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
-    seller_match = re.search(r"SELLER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
+    buyer_match = re.search(r"BUYER\s*:\s*(@?\S+)", original_text, re.IGNORECASE)
+    seller_match = re.search(r"SELLER\s*:\s*(@?\S+)", original_text, re.IGNORECASE)
     amount_match = re.search(r"DEAL AMOUNT\s*:\s*₹?\s*([\d.]+)", original_text, re.IGNORECASE)
 
     buyer = buyer_match.group(1) if buyer_match else "Unknown"
@@ -179,8 +198,8 @@ async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_data()
 
     original_text = update.message.reply_to_message.text
-    buyer_match = re.search(r"BUYER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
-    seller_match = re.search(r"SELLER\s*:\s*(@\w+)", original_text, re.IGNORECASE)
+    buyer_match = re.search(r"BUYER\s*:\s*(@?\S+)", original_text, re.IGNORECASE)
+    seller_match = re.search(r"SELLER\s*:\s*(@?\S+)", original_text, re.IGNORECASE)
     buyer = buyer_match.group(1) if buyer_match else "Unknown"
     seller = seller_match.group(1) if seller_match else "Unknown"
 
@@ -192,7 +211,6 @@ async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else update.effective_user.full_name
     )
 
-    # Group message
     msg = (
         "✅ <b>Deal Completed!</b>\n"
         "────────────────\n"
@@ -209,7 +227,6 @@ async def complete_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
-    # Log channel
     log_msg = (
         "📜 <b>Deal Completed (Log)</b>\n"
         "────────────────\n"
@@ -264,6 +281,7 @@ def main():
     app.add_handler(CommandHandler("complete", complete_deal))
     app.add_handler(CommandHandler("stats", group_stats))
     app.add_handler(CommandHandler("gstats", global_stats))
+    app.add_handler(CommandHandler("ping", ping))
 
     print("Bot started... ✅")
     app.run_polling()
