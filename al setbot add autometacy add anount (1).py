@@ -127,7 +127,7 @@ async def add_deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     update_escrower_stats(chat_id, escrower, amount, fee)
 
     msg = (
-        "💎 <b>New Deal Secured!</b>\n"
+        "✅ <b>Amount Received!</b>\n"
         "────────────────\n"
         f"👤 <b>Buyer</b>  : {buyer}\n"
         f"👤 <b>Seller</b> : {seller}\n"
