@@ -1,4 +1,1 @@
-pyrogram==2.0.106
-tgcrypto
-pyaes==1.6.1
-pysocks==1.7.1
+pip install python-telegram-bot==20.3 g4f
