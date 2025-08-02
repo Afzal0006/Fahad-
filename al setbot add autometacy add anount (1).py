@@ -5,11 +5,10 @@ from datetime import datetime
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-BOT_TOKEN = "YOUR_BOT_TOKEN"
+BOT_TOKEN = "8350094964:AAEBEZh1imgSPFA6Oc3-wdDGNyKV4Ozc_yg"
 DATA_FILE = "data.json"
-LOG_CHANNEL_ID = -1002330347621  # apna log channel id
+LOG_CHANNEL_ID = -1002330347621
 
-# ----------------- Data Handling -----------------
 def load_data():
     try:
         with open(DATA_FILE, "r") as f:
@@ -23,7 +22,6 @@ def save_data():
 
 data = load_data()
 
-# ----------------- Utils -----------------
 async def is_admin(update: Update) -> bool:
     try:
         member = await update.effective_chat.get_member(update.effective_user.id)
@@ -58,7 +56,6 @@ def update_escrower_stats(group_id: str, escrower: str, amount: float, fee: floa
 
     save_data()
 
-# ----------------- Commands -----------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = (
         "✨ <b>Welcome to Demo Escrower Bot!</b> ✨\n\n"
@@ -288,7 +285,6 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(msg, parse_mode="HTML")
 
-# ----------------- Main -----------------
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
