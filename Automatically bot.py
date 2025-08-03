@@ -1,7 +1,9 @@
 import os
+import os
 import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
+from pyrogram import Client as UserClient
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -10,19 +12,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-GROUP_ID = int(os.getenv("GROUP_ID", "-1001234567890"))
+API_ID = int(os.getenv("API_ID", 123456))
+API_HASH = os.getenv("API_HASH", "your_api_hash")
+STRING_SESSION = os.getenv("STRING_SESSION", "your_string_session")
+
+userbot = UserClient(
+    name="userbot",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    session_string=STRING_SESSION
+)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hello! Type /deal to get your private deal group link.")
+    await update.message.reply_text("Hello! Type /deal to create a private group.")
 
 async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
     try:
-        link = await context.bot.create_chat_invite_link(
-            chat_id=GROUP_ID,
-            member_limit=1,
-            creates_join_request=False
-        )
-        await update.message.reply_text(f"✅ Here is your private deal group link:\n{link.invite_link}")
+        async with userbot:
+            group = await userbot.create_supergroup(title=f"Deal with {user.first_name}")
+            link = await userbot.export_chat_invite_link(group.id)
+        await update.message.reply_text(f"✅ New private group created!\nJoin here: {link}")
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
         logger.error(e)
