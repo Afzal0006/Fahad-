@@ -1,1 +1,1 @@
-- [![Railway](https://img.shields.io/badge/HellBot-Deploy%20On%20Railway-black?style=for-the-badge&logo=railway)](#Deploy-on-Railway)
+- [![Railway](https://img.shields.io/badge/Afzal0006-Deploy%20On%20Railway-black?style=for-the-badge&logo=railway)](#Deploy-on-Railway)
