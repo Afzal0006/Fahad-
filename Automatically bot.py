@@ -11,9 +11,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-API_ID = int(os.getenv("API_ID", 123456))
-API_HASH = os.getenv("API_HASH", "your_api_hash")
+BOT_TOKEN = os.getenv("8479001314:AAEtthyPfZiuu3YHdVJYI-T_uIediUNytoM")
+API_ID = int(os.getenv("26014459", 123456))
+API_HASH = os.getenv("34b8791089c72367a5088f96d925f989", "your_api_hash")
 STRING_SESSION = os.getenv("BQGM8vsAuzqnG4-RM6mft9DZfDPGAJhvcJp5GA9sQdJj6uc9yWXiBeAj4YyYyGpd4V3oq-ZVy0DoT-7enLyXi_K_SUEu7-WnW0dw4iP37V8yltfyh_aR6CUkpa-325Arz91Ct9lfV7FnacS8_AE6YSsc5nU3gaKt3ZSHfil8n95Gh0gZ14PgWYG_n1j_iv7rWykU39oz-TNH93a4hYbWkzFYuQFAtYgo3nB82WYcn2TxBCYYixmEXW4F1uyezZ0usaECSgtuI3xTjsbq3ogXKAI4xJhd8kTVp1pQIk0ryZ0TFbdlGj50gWqdcuVzU8c1zA34KcbDusUOlS2Qi8tApoVExduhPQAAAAGx20OoAA", "your_string_session")
 
 userbot = UserClient(
