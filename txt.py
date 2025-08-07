@@ -6,7 +6,7 @@ import os
 from telegram import Update, Document
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-BOT_TOKEN = "Your Bot Token Here"
+BOT_TOKEN = "7607621887:AAFS9UH0dwqjBsTn6yA0CeAaYOfQLk6l8mE"
 
 VIP_START = (
     "🔐 VIP Area: Netflix Cookies\n\n"
