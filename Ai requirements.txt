@@ -1,1 +1,1 @@
-pip install python-telegram-bot==20.3 g4f
+python-telegram-bot==20.0
