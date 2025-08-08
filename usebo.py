@@ -46,7 +46,7 @@ async def create_group(client, message):
             # Step 5: Send and pin the form
             form_message = f"""
 **DEAL INFO :**
-**BUYER :** {buyer_username}
+**BUYER :** @
 **SELLER :** @
 **DEAL AMOUNT :** 10 rs
 **TIME TO COMPLETE DEAL :**
