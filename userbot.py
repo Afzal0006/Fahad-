@@ -43,20 +43,18 @@ async def create_group(client, message):
             # Step 4: Add escrow bot
             await client.add_chat_members(group.id, ESCROW_BOT_USERNAME)
 
-            # Step 4.1: Promote escrow bot to full admin
+            # Step 4.1: Promote escrow bot to admin (latest Pyrogram v2 syntax)
             bot_user = await client.get_users(ESCROW_BOT_USERNAME)
             await client.promote_chat_member(
                 chat_id=group.id,
                 user_id=bot_user.id,
-                can_change_info=True,
-                can_post_messages=True,
-                can_edit_messages=True,
+                can_manage_chat=True,
                 can_delete_messages=True,
-                can_invite_users=True,
+                can_manage_video_chats=True,
                 can_restrict_members=True,
+                can_invite_users=True,
                 can_pin_messages=True,
-                can_promote_members=True,
-                can_manage_video_chats=True
+                can_promote_members=True
             )
 
             # Step 5: Send and pin the form
