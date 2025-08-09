@@ -1,2 +1,1 @@
-pyrogram
-tgcrypto
+pyrogram[speedups]==2.0.106
