@@ -36,8 +36,10 @@ async def help_cmd(client, message):
 @app.on_message(filters.command("stats") & filters.me)
 async def stats_cmd(client, message):
     chat = message.chat
-    total_members = 0
-    if chat.type in ["group", "supergroup", "channel"]:
+    total_members = getattr(chat, "members_count", 0)
+    if total_members == 0 and chat.type in ["group", "supergroup", "channel"]:
+        # fallback if members_count not available
+        total_members = 0
         async for member in client.iter_chat_members(chat.id):
             total_members += 1
     text = (
@@ -73,17 +75,21 @@ async def leave_cmd(client, message):
 async def periodic_broadcast(client, message_text, delay):
     global stop_broadcast
     stop_broadcast = False
-    while not stop_broadcast:
-        sent = 0
-        failed = 0
-        async for dialog in client.get_dialogs():
-            try:
-                await client.send_message(dialog.chat.id, message_text)
-                sent += 1
-            except Exception:
-                failed += 1
-        print(f"Broadcast sent to {sent} chats, failed in {failed} chats.")
-        await asyncio.sleep(delay)
+    try:
+        while not stop_broadcast:
+            sent = 0
+            failed = 0
+            async for dialog in client.get_dialogs():
+                try:
+                    await client.send_message(dialog.chat.id, message_text)
+                    sent += 1
+                except Exception:
+                    failed += 1
+            print(f"Broadcast sent to {sent} chats, failed in {failed} chats.")
+            await asyncio.sleep(delay)
+    except asyncio.CancelledError:
+        print("Broadcast task cancelled")
+        raise
 
 @app.on_message(filters.command("broadcast") & filters.me)
 async def broadcast_cmd(client, message):
@@ -106,6 +112,10 @@ async def broadcast_cmd(client, message):
     if broadcast_task and not broadcast_task.done():
         stop_broadcast = True
         broadcast_task.cancel()
+        try:
+            await broadcast_task
+        except asyncio.CancelledError:
+            pass
         await asyncio.sleep(1)
 
     broadcast_task = app.loop.create_task(periodic_broadcast(client, broadcast_message, delay_seconds))
@@ -117,6 +127,10 @@ async def stop_cmd(client, message):
     if broadcast_task and not broadcast_task.done():
         stop_broadcast = True
         broadcast_task.cancel()
+        try:
+            await broadcast_task
+        except asyncio.CancelledError:
+            pass
         await message.reply("Periodic broadcast stopped.")
     else:
         await message.reply("No periodic broadcast is running.")
@@ -126,4 +140,5 @@ async def ping_cmd(client, message):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     await message.reply(f"Pong! 🏓\nTime: {now}")
 
+print("Bot is starting...")
 app.run()
