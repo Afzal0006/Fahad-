@@ -19,8 +19,8 @@ COMMANDS = {
     "/stats": "Chat/group ke stats dikhata hai.",
     "/join": "Group ya channel join karta hai. Usage: /join <invite_link_or_username>",
     "/leave": "Group ya channel chhodta hai. Usage: /leave <chat_id_or_username>",
-    "/broadcast": "Sab chats me message bhejta hai. Usage: /broadcast <message>",
     "/ping": "Bot ki speed aur current time check karta hai.",
+    "/del": "Userbot ka message delete karta hai. Reply karke /del use karo.",
     "/help": "Commands list dikhata hai."
 }
 
@@ -80,30 +80,26 @@ async def leave_cmd(client, message):
     except Exception as e:
         await message.reply(f"Failed to leave: {e}")
 
-@app.on_message(filters.command("broadcast") & filters.me)
-@owner_only
-async def broadcast_cmd(client, message):
-    if len(message.command) < 2:
-        return await message.reply("Usage: /broadcast <message>")
-
-    broadcast_message = message.text.split(None, 1)[1]
-
-    sent = 0
-    failed = 0
-    async for dialog in client.get_dialogs():
-        try:
-            await client.send_message(dialog.chat.id, broadcast_message)
-            sent += 1
-        except Exception:
-            failed += 1
-
-    await message.reply(f"Broadcast sent to {sent} chats, failed in {failed} chats.")
-
 @app.on_message(filters.command("ping") & filters.me)
 @owner_only
 async def ping_cmd(client, message):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     await message.reply(f"Pong! 🏓\nTime: {now}")
+
+@app.on_message(filters.command("del") & filters.me)
+@owner_only
+async def delete_cmd(client, message):
+    if message.reply_to_message:
+        try:
+            await message.reply_to_message.delete()
+            await message.delete()
+        except Exception as e:
+            await message.reply(f"Failed to delete message: {e}")
+    else:
+        try:
+            await message.delete()
+        except Exception as e:
+            await message.reply(f"Failed to delete message: {e}")
 
 print("Bot is starting...")
 app.run()
