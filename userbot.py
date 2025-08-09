@@ -6,6 +6,8 @@ API_ID = 26014459
 API_HASH = "34b8791089c72367a5088f96d925f989"
 STRING_SESSION = "BQGM8vsAJVppG5SfjCvycz5l9o_UIsYpj3bvjYYF7qxZijHTM8_7mx8HlI2NVksjHXC3o31_QhFdq3VQGp510kRTE8CP0lYNSxQoM7A00-Wa56JNH1R2cNWTDuUGTYXqbif1B4z96_vPRJvPysL-R-6YMO7BDrI39Poyxv-IieogpMorJKUiQEgn1DjbeQTQNkpbJNwa2l-sbXumBfw5zwMCCZo4-iW_cNULOJLR_hw9-cRC64tMvegiJUUxmpweOThIJdz4ElEl7_qWV1HJSuTkPHyO_RaAIem-GwqQEi5RUlfpKXkCcOZYkPzZpMyrymLzcD0c-cGjPY7lqvFatJnNxF__VwAAAAGx20OoAA"
 
+OWNER_ID = 6998916494  # Aapka Telegram User ID
+
 app = Client(
     "my_userbot",
     api_id=API_ID,
@@ -26,7 +28,15 @@ COMMANDS = {
     "/help": "Commands list dikhata hai."
 }
 
+def owner_only(func):
+    async def wrapper(client, message):
+        if message.from_user.id != OWNER_ID:
+            return await message.reply("If u want to use this bot contact with @golgibody")
+        return await func(client, message)
+    return wrapper
+
 @app.on_message(filters.command("help") & filters.me)
+@owner_only
 async def help_cmd(client, message):
     help_text = "**Available Commands:**\n\n"
     for cmd, desc in COMMANDS.items():
@@ -34,11 +44,11 @@ async def help_cmd(client, message):
     await message.reply(help_text)
 
 @app.on_message(filters.command("stats") & filters.me)
+@owner_only
 async def stats_cmd(client, message):
     chat = message.chat
     total_members = getattr(chat, "members_count", 0)
     if total_members == 0 and chat.type in ["group", "supergroup", "channel"]:
-        # fallback if members_count not available
         total_members = 0
         async for member in client.iter_chat_members(chat.id):
             total_members += 1
@@ -51,6 +61,7 @@ async def stats_cmd(client, message):
     await message.reply(text)
 
 @app.on_message(filters.command("join") & filters.me)
+@owner_only
 async def join_cmd(client, message):
     if len(message.command) < 2:
         return await message.reply("Usage: /join <invite_link_or_username>")
@@ -62,6 +73,7 @@ async def join_cmd(client, message):
         await message.reply(f"Failed to join: {e}")
 
 @app.on_message(filters.command("leave") & filters.me)
+@owner_only
 async def leave_cmd(client, message):
     if len(message.command) < 2:
         return await message.reply("Usage: /leave <chat_id_or_username>")
@@ -92,6 +104,7 @@ async def periodic_broadcast(client, message_text, delay):
         raise
 
 @app.on_message(filters.command("broadcast") & filters.me)
+@owner_only
 async def broadcast_cmd(client, message):
     global broadcast_task, stop_broadcast
 
@@ -122,6 +135,7 @@ async def broadcast_cmd(client, message):
     await message.reply(f"Started periodic broadcast every {delay_seconds} seconds.")
 
 @app.on_message(filters.command("stop") & filters.me)
+@owner_only
 async def stop_cmd(client, message):
     global broadcast_task, stop_broadcast
     if broadcast_task and not broadcast_task.done():
@@ -136,6 +150,7 @@ async def stop_cmd(client, message):
         await message.reply("No periodic broadcast is running.")
 
 @app.on_message(filters.command("ping") & filters.me)
+@owner_only
 async def ping_cmd(client, message):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     await message.reply(f"Pong! 🏓\nTime: {now}")
