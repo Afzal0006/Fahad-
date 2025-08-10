@@ -4,13 +4,13 @@ import json
 from pyrogram import Client, filters
 from pyrogram.types import Message
 
-# Your actual API credentials and userbot string session
 API_ID = 26014459
 API_HASH = "34b8791089c72367a5088f96d925f989"
 STRING_SESSION = "BQGM8vsAJVppG5SfjCvycz5l9o_UIsYpj3bvjYYF7qxZijHTM8_7mx8HlI2NVksjHXC3o31_QhFdq3VQGp510kRTE8CP0lYNSxQoM7A00-Wa56JNH1R2cNWTDuUGTYXqbif1B4z96_vPRJvPysL-R-6YMO7BDrI39Poyxv-IieogpMorJKUiQEgn1DjbeQTQNkpbJNwa2l-sbXumBfw5zwMCCZo4-iW_cNULOJLR_hw9-cRC64tMvegiJUUxmpweOThIJdz4ElEl7_qWV1HJSuTkPHyO_RaAIem-GwqQEi5RUlfpKXkCcOZYkPzZpMyrymLzcD0c-cGjPY7lqvFatJnNxF__VwAAAAGx20OoAA"
 
 DATA_FILE = "data.json"
 LOG_CHANNEL_ID = -1002330347621  # your log channel id
+OWNER_ID = 6998916494  # Your Telegram user ID (owner only)
 
 def load_data():
     try:
@@ -50,7 +50,7 @@ def update_escrower_stats(group_id: str, escrower: str, amount: float, fee: floa
     save_data()
 
 async def is_admin(m: Message):
-    return True
+    return m.from_user and m.from_user.id == OWNER_ID
 
 async def start_handler(client: Client, message: Message):
     msg = (
