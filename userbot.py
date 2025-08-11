@@ -8,10 +8,10 @@ BOT_ID = 8414351117
 app = Client("userbot", api_id=API_ID, api_hash=API_HASH, session_string=STRING_SESSION)
 
 @app.on_message(filters.private & filters.from_user(BOT_ID))
-async def handle_create(app, message):
-    if message.text.strip() == "/create":
-        chat = await app.create_supergroup("Escrow Deal", "")
-        link = await app.export_chat_invite_link(chat.id)
-        await app.send_message(BOT_ID, link, reply_to_message_id=message.id)
+async def handle_create(client, message):
+    if message.text.strip().lower() == "/create":
+        chat = await client.create_supergroup("Escrow Deal", "This is an escrow group.")
+        link = await client.export_chat_invite_link(chat.id)
+        await client.send_message(BOT_ID, link)
 
 app.run()
