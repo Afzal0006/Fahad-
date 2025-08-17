@@ -1,52 +1,27 @@
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+import asyncio
+import random
+from pyrogram import Client, filters
+from pyrogram.types import Message
 
-BOT_TOKEN = "7969208313:AAFRA-tbEvSTFlU1ESxTeMmn1yDk5OLOSDQ"
+API_ID = 24024383
+API_HASH = "e4defcf520c9333e56196378440e990c"
+STRING_SESSION = "AQFulT8AGz5gsKX_sr74eR9CahbNukSh-DNg5wRAOSBEByClXwn960S-6OV1aYE8ZK0hpq_FXwKEvvGb2-ZeVpnj3cSyQLWHueUGAwKtH0rtVBY3pJJORnShhYKZdBn0XIoTtgnCtxtCCF1BipDtJtStN1aIvR9_Gt5VZjVzrcrFpZHJrKhGaR7Kjvfl_ntI2xhdw9bQF19Ne8DaXVijwjfb2dCipbx1Ms8Inybrkh69Qyz-aFN9ckY4aFm0WLm8R-DnqwvL70A8cefw_p7uy02SdeGHNZIAWXsbZV49LtMq3n6uC1auRW-QwfMktBkYAiYfIcBuYfEx7G1VtlM1w3IrAU2szAAAAAG0N0VUAA"
 
-# -------- /banall command --------
-async def ban_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
-    user = update.effective_user
+user = Client("userbot", api_id=API_ID, api_hash=API_HASH, session_string=STRING_SESSION)
 
-    # Check if command is in a group
-    if chat.type not in ["group", "supergroup"]:
-        await update.message.reply_text("❌ Yeh command sirf groups me kaam karegi!")
-        return
-
-    # Check if user is admin
-    member = await chat.get_member(user.id)
-    if member.status not in ["administrator", "creator"]:
-        await update.message.reply_text("❌ Sirf admin hi /banall chala sakta hai!")
-        return
-
-    await update.message.reply_text("⚠️ Ban All Started... Group ke sare members ban kiye ja rahe hai.")
-
-    # Iterate over all members
-    async for member in chat.get_members():
+@user.on_message(filters.command("acceptall") & filters.me)
+async def accept_all(client: Client, message: Message):
+    chat_id = message.chat.id
+    count = 0
+    await message.reply_text("⏳ Approving all pending join requests...")
+    async for req in client.get_chat_join_requests(chat_id):
         try:
-            # Skip admins, creator & bot
-            if member.status in ["administrator", "creator"] or member.user.is_bot:
-                continue
-
-            await chat.ban_member(member.user.id)
+            await client.approve_chat_join_request(chat_id, req.from_user.id)
+            count += 1
+            await asyncio.sleep(random.randint(8, 12))  # safe delay
         except Exception as e:
-            print(f"Error banning {member.user.id}: {e}")
+            print("Error:", e)
+    await message.reply_text(f"🎉 Done! Approved {count} requests.")
 
-    await update.message.reply_text("✅ Ban All Complete! Sare members ban ho gaye.")
-
-# -------- Start Command --------
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 BanAll Bot Ready!\nUse /banall in group (admin only).")
-
-# -------- Main Function --------
-def main():
-    app = Application.builder().token(BOT_TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("banall", ban_all))
-
-    print("✅ Bot started...")
-    app.run_polling()
-
-if __name__ == "__main__":
-    main()
+print("🚀 Userbot started. Type /acceptall in your group to approve requests.")
+user.run()
