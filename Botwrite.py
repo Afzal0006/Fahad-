@@ -1,65 +1,25 @@
 from pyrogram import Client, filters
-from PIL import Image, ImageDraw, ImageFont
-import os
 
-# ====== Your Bot Credentials ======
-API_ID = 20917743
-API_HASH = "0e8bcef16b3bae4f852bf42775f04ace"
-BOT_TOKEN = "8414351117:AAEDEkc1VblJ8NU8Umle1gby1KyY94Gd1x4"
-# ===================================
+api_id = 21081718
+api_hash = "fec3c59a0f36beb71199dba4459eef86"
+string = "BQFBrnYAl-pWnXbngB408FvSpoCaD7zojyTEPq9HUho4f_6juAcAzJ7TuF0v2TCZ0ahvEsEHjHhxWxyq9VbYwCh1mfUQvtHiy6WLaSor8F0g_jaz07f-W8_Gy6NQLiEJt_YXrhy4Py0L6MnTSxb4U_Xn4PWlQQ934BD-nh8BxyCgTV_DcQrvA8YwpWDGeKem1ZaAK8lQvtcCj5jmNs4WBHNSXchphObU_MxfZm_-lKCABX3CYY_I_CIyNMQH9WUIp2syavT-9iakCWa8WtMN-NFrxPc6LX14KxveI24ZmGeBj2_bwxWTDrzrJj4ppYiGZ6Xvo06tAlKkmFY4bihnqvTPgbopYAAAAAGxU39QAA"
 
-# Fancy font style
-FANCY_STYLE = "𝒜𝐵𝒞𝒟𝐸𝐹𝒢𝐻𝐼𝒥𝒦𝐿𝑀𝒩𝒪𝒫𝒬𝑅𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵" \
-              "𝒶𝒷𝒸𝒹𝑒𝒻𝑔𝒽𝒾𝒿𝓀𝓁𝓂𝓃𝑜𝓅𝓆𝓇𝓈𝓉𝓊𝓋𝓌𝓍𝓎𝓏"
+BOT_ID = 8350094964
 
-# Convert normal text to fancy
-def to_fancy(text):
-    normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-    return text.translate(str.maketrans(normal, FANCY_STYLE))
-
-# Create blank slide with fancy text
-def text_on_blank_slide(text, output_file="slide.png"):
-    img = Image.new("RGB", (1280, 720), color="white")
-    draw = ImageDraw.Draw(img)
-
-    try:
-        font = ImageFont.truetype("arial.ttf", 60)
-    except:
-        font = ImageFont.load_default()
-
-    fancy_text = to_fancy(text)
-    text_width, text_height = draw.textsize(fancy_text, font=font)
-    x = (img.width - text_width) / 2
-    y = (img.height - text_height) / 2
-
-    draw.text((x, y), fancy_text, font=font, fill="black")
-    img.save(output_file)
-    return output_file
-
-# Bot client
-bot = Client(
-    "fancy_write_bot",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN
+userbot = Client(
+    "userbot",
+    api_id=api_id,
+    api_hash=api_hash,
+    session_string=string
 )
 
-# Command handler
-@bot.on_message(filters.command("write", prefixes=["/", ".", "!", "?"], case_sensitive=False))
-async def fancy_handler(client, message):
-    args = message.text.split(None, 1)
+@userbot.on_message(filters.command("escrow", prefixes=["/"]) & filters.user(BOT_ID))
+async def create_group(_, message):
+    chat = await userbot.create_group(
+        title="🤝 Escrow Trade Group",
+        users=[BOT_ID]
+    )
+    link = await userbot.export_chat_invite_link(chat.id)
+    await message.reply_text(f"✅ Escrow group bana diya!\n\n🔗 {link}")
 
-    if len(args) < 2:
-        await message.reply_text("Usage: /write <text>\nExample: /write Hello world", quote=True)
-        return
-
-    text_to_write = args[1]
-    image_path = text_on_blank_slide(text_to_write)
-    
-    await message.reply_photo(image_path, caption="Here is your fancy text slide 🖼️")
-    
-    os.remove(image_path)  # Clean up
-
-if __name__ == "__main__":
-    print("Fancy Font Write Bot started...")
-    bot.run()
+userbot.run()
