@@ -15,11 +15,18 @@ userbot = Client(
 
 @userbot.on_message(filters.command("escrow", prefixes=["/"]) & filters.user(BOT_ID))
 async def create_group(_, message):
-    chat = await userbot.create_group(
+    # group create karo
+    chat = await userbot.create_chat(
         title="🤝 Escrow Trade Group",
         users=[BOT_ID]
     )
+
+    # invite link banao
     link = await userbot.export_chat_invite_link(chat.id)
-    await message.reply_text(f"✅ Escrow group bana diya!\n\n🔗 {link}")
+
+    # link bot ko bhejo (jisne command diya tha)
+    await message.reply_text(
+        f"✅ Escrow group bana diya!\n\n🔗 {link}"
+    )
 
 userbot.run()
