@@ -1,44 +1,76 @@
-import os
-import os
-import logging
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
-from pyrogram import Client as UserClient
+from pyrogram import Client, filters
+from pymongo import MongoClient
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
+# ------------------ CONFIG ------------------
+# Pyrogram / Telegram
+STRING_SESSION = "BQFBrnYAl-pWnXbngB408FvSpoCaD7zojyTEPq9HUho4f_6juAcAzJ7TuF0v2TCZ0ahvEsEHjHhxWxyq9VbYwCh1mfUQvtHiy6WLaSor8F0g_jaz07f-W8_Gy6NQLiEJt_YXrhy4Py0L6MnTSxb4U_Xn4PWlQQ934BD-nh8BxyCgTV_DcQrvA8YwpWDGeKem1ZaAK8lQvtcCj5jmNs4WBHNSXchphObU_MxfZm_-lKCABX3CYY_I_CIyNMQH9WUIp2syavT-9iakCWa8WtMN-NFrxPc6LX14KxveI24ZmGeBj2_bwxWTDrzrJj4ppYiGZ6Xvo06tAlKkmFY4bihnqvTPgbopYAAAAAGxU39QAA"
+API_ID = 21081718
+API_HASH = "fec3c59a0f36beb71199dba4459eef86"
 
-BOT_TOKEN = os.getenv("8479001314:AAEtthyPfZiuu3YHdVJYI-T_uIediUNytoM")
-API_ID = int(os.getenv("26014459", 123456))
-API_HASH = os.getenv("34b8791089c72367a5088f96d925f989", "your_api_hash")
-STRING_SESSION = os.getenv("BQGM8vsAuzqnG4-RM6mft9DZfDPGAJhvcJp5GA9sQdJj6uc9yWXiBeAj4YyYyGpd4V3oq-ZVy0DoT-7enLyXi_K_SUEu7-WnW0dw4iP37V8yltfyh_aR6CUkpa-325Arz91Ct9lfV7FnacS8_AE6YSsc5nU3gaKt3ZSHfil8n95Gh0gZ14PgWYG_n1j_iv7rWykU39oz-TNH93a4hYbWkzFYuQFAtYgo3nB82WYcn2TxBCYYixmEXW4F1uyezZ0usaECSgtuI3xTjsbq3ogXKAI4xJhd8kTVp1pQIk0ryZ0TFbdlGj50gWqdcuVzU8c1zA34KcbDusUOlS2Qi8tApoVExduhPQAAAAGx20OoAA", "your_string_session")
+# MongoDB
+MONGO_URI = "mongodb+srv://afzal99550:afzal99550@cluster0.aqmbh9q.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+DB_NAME = "filter_bot"
+COLLECTION = "filters"
 
-userbot = UserClient(
-    name="userbot",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    session_string=STRING_SESSION
-)
+# Group & Fetch settings
+GROUP_ID = -1002776165745      # Group ID jaha scan karna hai
+MESSAGE_FETCH_LIMIT = 50       # Kitne recent messages scan karne hain
+# -------------------------------------------
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hello! Type /deal to create a private group.")
+# ------------------ MONGODB SETUP ------------------
+mongo_client = MongoClient(MONGO_URI)
+db = mongo_client[DB_NAME]
+collection = db[COLLECTION]
 
-async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    try:
-        async with userbot:
-            group = await userbot.create_supergroup(title=f"Deal with {user.first_name}")
-            link = await userbot.export_chat_invite_link(group.id)
-        await update.message.reply_text(f"✅ New private group created!\nJoin here: {link}")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
-        logger.error(e)
+# ------------------ PYROGRAM CLIENT ------------------
+app = Client(session_name=STRING_SESSION, api_id=API_ID, api_hash=API_HASH)
 
-if __name__ == "__main__":
-    app = Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("deal", deal))
-    app.run_polling()
+# ------------------ COMMAND HANDLER ------------------
+@app.on_message(filters.command("Filter") & filters.chat(GROUP_ID))
+async def filter_command(client, message):
+    """
+    User-triggered filter command
+    Usage: /Filter <keyword>
+    """
+    # Check for keyword argument
+    if len(message.command) < 2:
+        await message.reply_text("Usage: /Filter <keyword>")
+        return
+
+    keyword = " ".join(message.command[1:]).lower()
+    user_id = message.from_user.id
+
+    # Fetch last checked message id for this user and keyword
+    user_filter = collection.find_one({"user_id": user_id, "keyword": keyword})
+    last_id = user_filter["last_checked_message_id"] if user_filter else 0
+
+    # Fetch recent messages from group
+    messages = await client.get_chat_history(GROUP_ID, limit=MESSAGE_FETCH_LIMIT)
+    matched = []
+    newest_id = last_id
+
+    # Scan messages from oldest to newest
+    for msg in reversed(messages):
+        if msg.message and keyword in msg.message.lower() and msg.message_id > last_id:
+            sender = msg.from_user.first_name if msg.from_user else "Unknown"
+            matched.append(f"{sender}: {msg.message}")
+            if msg.message_id > newest_id:
+                newest_id = msg.message_id
+
+    # Send results to user via DM
+    if matched:
+        response = "📌 Matched messages:\n\n" + "\n\n".join(matched)
+        await client.send_message(user_id, response)
+    else:
+        await client.send_message(user_id, "No new messages found for this keyword.")
+
+    # Update last checked message id in MongoDB
+    collection.update_one(
+        {"user_id": user_id, "keyword": keyword},
+        {"$set": {"last_checked_message_id": newest_id}},
+        upsert=True
+    )
+
+# ------------------ RUN THE BOT ------------------
+print("✅ Userbot is running...")
+app.run()
